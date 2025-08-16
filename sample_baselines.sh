@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Define the options for the synth_mask parameter
-#options_dataset=("adult" "bean" "california" "default" "gesture" "letter" "magic" "news" "shoppers")
-options_dataset=("adult")
+options_dataset=("adult" "bean" "california" "default" "gesture" "letter" "magic" "news" "shoppers")
+#options_dataset=("adult")
 options_mask=("MAR" "MCAR" "MNAR")
 options_ratio=("0.25" "0.5" "0.75")
 
