@@ -143,7 +143,7 @@ def process_magic():
 def process_california():
     path = f'{DATA_DIR}/california/housing.csv'
     save_path = f'{DATA_DIR}/california/data.csv'
-    data_df = pd.read_csv(path, header=None)
+    data_df = pd.read_csv(path)
     columns = data_df.columns
     df_cleaned = data_df.dropna()
     df_cleaned.to_csv(save_path, index=False)
@@ -152,7 +152,7 @@ def process_california():
 def process_bean():
     path = f'{DATA_DIR}/bean/DryBeanDataset/Dry_Bean_Dataset.xlsx'
     save_path = f'{DATA_DIR}/bean/data.csv'
-    data_df = pd.read_excel(path, sheet_name='Dry_Beans_Dataset', header=1)
+    data_df = pd.read_excel(path, sheet_name='Dry_Beans_Dataset')
 
     df_cleaned = data_df.dropna()
     df_cleaned.to_csv(save_path, index=False)
