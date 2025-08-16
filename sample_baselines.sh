@@ -12,7 +12,7 @@ do
   do
     for ratio in "${options_ratio[@]}"
     do
-      python3.12 sampling_diffputer.py --dataname $dataset --mask $mask --ratio $ratio --num_steps 5 --num_trials 1
+      python3.12 sampling_diffputer.py --dataname $dataset --mask $mask --ratio $ratio --num_steps 50 --num_trials 5
     done
   done
 done
