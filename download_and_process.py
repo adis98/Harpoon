@@ -43,7 +43,7 @@ def download_from_uci(name):
         print(f'Finish unzipping {name}.')
 
     else:
-        print('Aready downloaded.')
+        print('Already downloaded.')
 
 
 def process_adult():
