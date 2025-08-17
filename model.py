@@ -122,7 +122,6 @@ class MLPDiffusion(nn.Module):
         emb = self.map_noise(noise_labels)
         emb = emb.reshape(emb.shape[0], 2, -1).flip(1).reshape(*emb.shape) # swap sin/cos
         emb = self.time_embed(emb)
-
         x = self.proj(x) 
         x = x + emb
         return self.mlp(x)

@@ -30,6 +30,7 @@ options_dataset=("adult" "bean" "california" "default" "gesture" "letter" "magic
 
 for dataset in "${options_dataset[@]}"
 do
-  python3.12 train_diffputer.py --dataname $dataset
+  python3.12 train_repaint.py --dataname $dataset
+#  python3.12 train_diffputer.py --dataname $dataset
 done
 

@@ -258,8 +258,6 @@ def get_eval(X_pred, X_true, mask, num_numeric):
     num_mask = mask[:, :num_numeric]
     cat_mask = mask[:, num_numeric:]
     num_diff = (num_true[num_mask] - num_pred[num_mask])**2
-    max_loc = np.unravel_index(np.argmax((num_pred - num_true)**2), num_pred.shape)
-    id = np.argmax(num_diff)
     mse = (num_diff.mean())
     cat_diff = cat_pred[cat_mask] == cat_true[cat_mask]
     acc = np.sum(cat_diff) * 100/len(cat_diff)

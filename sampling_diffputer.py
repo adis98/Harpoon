@@ -30,7 +30,7 @@ if __name__ == "__main__":
     parser.add_argument('--num_steps', type=int, default=50, help='Number of diffusion steps.')
     parser.add_argument('--mask', type=str, default='MAR', help='Masking mechanisms.')
     parser.add_argument('--num_trials', type=int, default=5, help='Number of sampling times.')
-    parser.add_argument('--ratio', type=str, default="0.3", help='Masking ratio.')
+    parser.add_argument('--ratio', type=str, default="0.25", help='Masking ratio.')
 
     args = parser.parse_args()
     if args.gpu != -1 and torch.cuda.is_available():
@@ -103,35 +103,35 @@ if __name__ == "__main__":
         mse, acc = get_eval(X_pred_dec, X_true_dec, orig_mask[trial], num_numeric)
         MSEs.append(mse)
         ACCs.append(acc)
-    MSEs = np.array(MSEs)
-    ACCs = np.array(ACCs)
-    experiment_path = f'experiments/imputation.csv'
-    directory = os.path.dirname(experiment_path)
-    if directory and not os.path.exists(directory):
-        os.makedirs(directory)
-    if not os.path.exists(experiment_path):
-        columns = [
-            "Dataset",
-            "Method",
-            "Mask Type",
-            "Ratio",
-            "Avg MSE",
-            "STD of MSE",
-            "Avg Acc",
-            "STD of Acc"
-        ]
-        exp_df = pd.DataFrame(columns=columns)
-    else:
-        exp_df = pd.read_csv(experiment_path).drop(columns=['Unnamed: 0'])
-
-    new_row = {"Dataset": dataname,
-               "Method": "DiffPuter",
-               "Mask Type": args.mask,
-               "Ratio": ratio,
-               "Avg MSE": np.mean(MSEs),
-               "STD of MSE": np.std(MSEs),
-               "Avg Acc": np.mean(ACCs),
-               "STD of Acc": np.std(ACCs)
-               }
-    new_df = pd.concat([exp_df, pd.DataFrame([new_row])], ignore_index=True)
-    new_df.to_csv(experiment_path)
+    # MSEs = np.array(MSEs)
+    # ACCs = np.array(ACCs)
+    # experiment_path = f'experiments/imputation.csv'
+    # directory = os.path.dirname(experiment_path)
+    # if directory and not os.path.exists(directory):
+    #     os.makedirs(directory)
+    # if not os.path.exists(experiment_path):
+    #     columns = [
+    #         "Dataset",
+    #         "Method",
+    #         "Mask Type",
+    #         "Ratio",
+    #         "Avg MSE",
+    #         "STD of MSE",
+    #         "Avg Acc",
+    #         "STD of Acc"
+    #     ]
+    #     exp_df = pd.DataFrame(columns=columns)
+    # else:
+    #     exp_df = pd.read_csv(experiment_path).drop(columns=['Unnamed: 0'])
+    #
+    # new_row = {"Dataset": dataname,
+    #            "Method": "DiffPuter",
+    #            "Mask Type": args.mask,
+    #            "Ratio": ratio,
+    #            "Avg MSE": np.mean(MSEs),
+    #            "STD of MSE": np.std(MSEs),
+    #            "Avg Acc": np.mean(ACCs),
+    #            "STD of Acc": np.std(ACCs)
+    #            }
+    # new_df = pd.concat([exp_df, pd.DataFrame([new_row])], ignore_index=True)
+    # new_df.to_csv(experiment_path)
