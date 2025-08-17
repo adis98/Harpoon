@@ -18,7 +18,7 @@ NAME_URL_DICT_UCI = {
     'gesture': 'https://archive.ics.uci.edu/static/public/302/gesture+phase+segmentation.zip',
     'letter': 'https://archive.ics.uci.edu/static/public/59/letter+recognition.zip',
     'bean': 'https://archive.ics.uci.edu/static/public/602/dry+bean+dataset.zip',
-    # 'california': "This one is locally downloaded from Kaggle"
+    'california': "This one is locally downloaded from Kaggle"
 }
 
 

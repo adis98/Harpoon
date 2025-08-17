@@ -6,3 +6,7 @@ xlrd == 2.0.2
 openpyxl == 3.1.5
 scikit-learn == 1.6.1
 tqdm
+
+timm
+hyperimpute
+tabulate
