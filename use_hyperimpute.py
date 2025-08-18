@@ -72,16 +72,17 @@ def main():
         # Train imputer on masked data
         imputer.fit(X_miss)
         X_imputed = imputer.transform(X_miss)
+        print(f"Trial {trial + 1}/{num_trials} completed. X_imputed shape: {X_imputed.shape}")
 
         # Evaluate only on missing entries
-        mse = np.nanmean((X_imputed[masks[trial]] - X[masks[trial]]) ** 2)
-        MSEs.append(mse)
+        # mse = np.nanmean((X_imputed[masks[trial]] - X[masks[trial]]) ** 2)
+        # MSEs.append(mse)
 
         # Save the imputer for each trial
         imputer.save(os.path.join(models_dir, f"hyperimpute_trial{trial}.pkl"))
-        print(f"Trial {trial}: MSE={mse:.6f}")
+        # print(f"Trial {trial}: MSE={mse:.6f}")
 
-    print(f"Avg MSE: {np.mean(MSEs):.6f} ± {np.std(MSEs):.6f}")
+    # print(f"Avg MSE: {np.mean(MSEs):.6f} ± {np.std(MSEs):.6f}")
 
 if __name__ == '__main__':
     main()
