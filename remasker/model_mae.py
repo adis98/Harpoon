@@ -8,7 +8,7 @@ import numpy as np
 import torch.nn as nn
 import pandas as pd
 from timm.models.vision_transformer import Block
-from utils import MaskEmbed, get_1d_sincos_pos_embed, ActiveEmbed
+from .remasker_utils import MaskEmbed, get_1d_sincos_pos_embed, ActiveEmbed
 eps = 1e-6
 
 class MaskedAutoencoder(nn.Module):

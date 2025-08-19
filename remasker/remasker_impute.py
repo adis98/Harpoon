@@ -9,12 +9,12 @@ import torch
 from torch import nn
 from functools import partial
 import time, os, json
-from utils import NativeScaler, MAEDataset, adjust_learning_rate, get_dataset
-import model_mae
+from .remasker_utils import NativeScaler, MAEDataset, adjust_learning_rate, get_dataset
+from . import model_mae
 from torch.utils.data import DataLoader, RandomSampler
 import sys
 import timm.optim.optim_factory as optim_factory
-from utils import get_args_parser
+from .remasker_utils import get_args_parser
 
 # hyperimpute absolute
 from hyperimpute.plugins.imputers import ImputerPlugin
