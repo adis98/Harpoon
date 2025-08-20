@@ -250,7 +250,7 @@ def mean_std(data, mask):
     return mean, std
 
 
-def get_eval(X_pred, X_true, mask, num_numeric):
+def get_eval(X_pred, X_true, mask, num_numeric, cat_edge_case=False):
     num_true = X_true[:, :num_numeric]
     cat_true = X_true[:, num_numeric:]
     num_pred = X_pred[:, :num_numeric]
@@ -259,8 +259,14 @@ def get_eval(X_pred, X_true, mask, num_numeric):
     cat_mask = mask[:, num_numeric:]
     num_diff = (num_true[num_mask] - num_pred[num_mask])**2
     mse = (num_diff.mean())
-    cat_diff = cat_pred[cat_mask] == cat_true[cat_mask]
-    acc = np.sum(cat_diff) * 100/len(cat_diff)
+    """Adult has an issue where whitespace in categories disrupts equality check for LLM-generated samples"""
+    if cat_edge_case:
+        cat_true_converted = cat_true[cat_mask].astype(str)
+        cat_diff = np.char.strip(cat_true_converted) == cat_pred[cat_mask]
+    else:
+        cat_diff = cat_pred[cat_mask] == cat_true[cat_mask]
+
+    acc = np.sum(cat_diff) * 100.0/len(cat_diff)
     return mse, acc
 
 # def get_eval(dataname, X_recon, X_true, truth_cat_idx, num_num, cat_bin_num, mask, oos=False):
