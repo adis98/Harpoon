@@ -13,13 +13,21 @@ from tqdm import tqdm
 from generate_mask import generate_mask
 from dataset import Preprocessor, get_eval
 
+# TensorFlow logging
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
+# Ignore Python warnings
 warnings.filterwarnings("ignore")
+
+# Transformers logging
 logging.getLogger("transformers.trainer").setLevel(logging.INFO)
 
 # Suppress one-off warnings from tokenizer/config/etc.
 logging.getLogger("transformers.tokenization_utils_base").setLevel(logging.ERROR)
 logging.getLogger("transformers.configuration_utils").setLevel(logging.ERROR)
+
+# Suppress decoder-only padding warning
+logging.getLogger("transformers.generation.utils").setLevel(logging.ERROR)
 
 # PyTorch tracing helper warning
 logging.getLogger("torch._dynamo").setLevel(logging.ERROR)
@@ -79,11 +87,12 @@ if __name__ == "__main__":
     great_model = GReaT.load_from_dir(models_dir)
     # max_length = 200 if args.dataname not in ['bean', 'default', 'gesture'] else 350  # some datasets need more tokens
     cat_edge_case = True if args.dataname == 'adult' else False
+    sz = 100 if args.dataname in ['gesture', 'news'] else 200
     with torch.no_grad():
         for trial in tqdm(range(num_trials), desc='Out-of-sample imputation'):
             mask = orig_mask[trial]
             masked_df = test_df.mask(mask)
-            imputed_data = great_model.impute(masked_df)
+            imputed_data = great_model.impute(masked_df, k=sz, max_retries=5)
             standardized_imputed_num = (imputed_data.iloc[:, :num_numeric] - mean_X)/std_X
             standardized_imputed_num = standardized_imputed_num.fillna(0.0)  # for numerical features that were not generated within the max retries
             imputed_eval = np.concatenate((standardized_imputed_num, imputed_data.iloc[:, num_numeric:]), axis=1)
