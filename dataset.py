@@ -66,13 +66,25 @@ class Preprocessor:
                 return nums.copy()
         elif scheme == 'Ordinal':
             if arr.shape[1] > self.numerical_indices_np_end:
-                cats = self.OrdinalEncoder.inverse_transform(arr[:, self.numerical_indices_np_end:])
+                cats_mapped = np.zeros_like(arr[:, self.numerical_indices_np_end:])
+                for col_idx, categories in enumerate(self.OrdinalEncoder.categories_):
+                    # categories is a 1D array of valid integers for this column
+                    cats_col = arr[:, self.numerical_indices_np_end+col_idx]
+                    # Find nearest valid category for each element
+                    catarr = np.arange(len(categories))
+                    absdiff = np.abs(np.vstack([catarr] * len(cats_col)) - cats_col[:, np.newaxis])
+                    cats_mapped[:, col_idx] = np.argmin(absdiff, axis=1)
+                cats = cats_mapped.astype(int)
+
+                cats_decoded = self.OrdinalEncoder.inverse_transform(cats)
+                # cats = self.OrdinalEncoder.inverse_transform(arr[:, self.numerical_indices_np_end:])
                 nums = arr[:, :self.numerical_indices_np_end]
-                merged = np.concatenate((nums, cats), axis=1)
+                merged = np.concatenate((nums, cats_decoded), axis=1)
                 return merged
             else:
                 nums = arr[:, :self.numerical_indices_np_end]
                 return nums.copy()
+
         else:
             print('invalid encoding scheme')
             exit()

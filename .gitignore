@@ -10,3 +10,6 @@ datasets/magic/
 datasets/news/
 datasets/shoppers/
 saved_models/
+*.DS_Store
+datasets/.DS_Store
+.DS_Store
