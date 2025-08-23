@@ -34,7 +34,8 @@ else:
     args.device = 'cpu'
 
 if __name__ == '__main__':
-
+    np.random.seed(42)
+    torch.manual_seed(42)
     dataname = args.dataname
     device = args.device
     hid_dim = args.hid_dim

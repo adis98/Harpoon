@@ -69,18 +69,8 @@ if __name__ == "__main__":
 
     in_dim = train_X.shape[1]
     X = (train_X - mean_X) / std_X
-    # X = torch.tensor(X)
-    # X_test = (test_X - mean_X) / std_X
-
-    mask_type = 'MCAR'  # or 'MAR', 'MCAR', 'MNAR_logistic_T2'
-    ratio = 0.2  # train on MCAR 0.2
-
-    train_mask = generate_mask(train_X, mask_type=mask_type, mask_num=1, p=ratio)[0]
-    X_miss = X.copy()
-    X_miss[train_mask] = np.nan
-
     imputer = ReMasker()
-    remasker = imputer.fit(torch.as_tensor(X_miss, dtype=torch.float32))
+    remasker = imputer.fit(torch.as_tensor(X.copy(), dtype=torch.float32))
 
     print(remasker.model)
 
@@ -98,61 +88,3 @@ if __name__ == "__main__":
     # with open(f"{models_dir}/hyperimpute_{plugin}_final.pkl", "wb") as f:
     #     f.write(imputer.save())  # imputer.save() returns a bytes object
     print(f"Saved imputer model: {f.name}")
-
-# test_X_ori_fmt = np.concatenate((prepper.df_test.iloc[:, prepper.info['num_col_idx']],
-#                                     prepper.df_test.iloc[:, prepper.info['cat_col_idx']]), axis=1)
-# test_X_ordinal_fmt = pd.DataFrame(prepper.encodeDf('Ordinal', prepper.df_test))
-#
-# # Keep original index if you have a DF you transformed
-# idx = test_X_ordinal_fmt.index if isinstance(test_X_ordinal_fmt, pd.DataFrame) else None
-#
-# df_out = pd.DataFrame(test_X_ordinal_fmt, index=idx)
-# out_path = os.path.join(models_dir, "test_X_ordinal_fmt.csv")
-# df_out.to_csv(out_path, index=False)
-
-# print("Train X:", X)
-# print("test_X_ori_fmt:", test_X_ori_fmt)
-# print("test_X_ordinal_fmt:", test_X_ordinal_fmt)    
-
-# exit()
-
-# mask_type = 'MCAR'  # or 'MAR', 'MCAR', 'MNAR_logistic_T2'
-# ratio = 0.20  # percentage of missing data
-# num_trials = 5  # number of trials for out-of-sample imputation
-#
-#
-# orig_mask = generate_mask(test_X_ordinal_fmt, mask_type=mask_type, mask_num=num_trials, p=ratio)
-# test_masks = prepper.extend_mask(orig_mask, encoding='OHE')
-#
-# print("Original Mask:", orig_mask.shape, orig_mask[:5])
-# print("Test Masks:", test_masks.shape, test_masks[:5])
-
-# exit()
-# where you call imputer.fit(X)
-
-
-# print(X)
-
-
-# torch.save(remasker.model.state_dict(), self.path)
-# imputed = imputer.fit_transform(X)
-
-
-# exit()  # exit after saving the model
-
-# 4) Impute
-# test_x_true, test_x_missing, test_x_mask = ampute(test_X_ordinal_fmt, mask_type, ratio)  # simulate missing data
-# train_imp = imputer.transform(train)
-# test_imp  = remasker.transform(test_x_missing.copy())  # impute the missing data
-
-# 5) Save artifacts to check the results later
-# train_imp.to_csv("train_x_imputed.csv", index=False)
-# test_imp.to_csv(f"{models_dir}test_x_imputed_remasker.csv",  index=False)
-# print("test imputed:", pd.DataFrame(test_imp))
-
-# mse = root_mean_squared_error(test_x_true.values, test_imp.values)  # RMSE
-# rmse = RMSE(test_imp.values, test_x_true.values, test_x_mask.values)
-# print(f"Remasker, RMSE: {rmse}, {mse*mse}")
-
-# 3) Impute the missing values
-# exit()

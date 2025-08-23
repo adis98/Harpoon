@@ -1,7 +1,7 @@
 # current implementation: only support numerical values
 
 from functools import partial
-from tkinter import E
+# from tkinter import E
 
 import torch
 import numpy as np

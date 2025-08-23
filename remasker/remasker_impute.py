@@ -11,6 +11,7 @@ from functools import partial
 import time, os, json
 from .remasker_utils import NativeScaler, MAEDataset, adjust_learning_rate, get_dataset
 from . import model_mae
+from tqdm import tqdm
 from torch.utils.data import DataLoader, RandomSampler
 import sys
 import timm.optim.optim_factory as optim_factory
@@ -118,8 +119,8 @@ class ReMasker:
         #     self.lr *= 0.5
 
         self.model.train()
-
-        for epoch in range(self.max_epochs):
+        pbar = tqdm(range(self.max_epochs), desc='Training')
+        for epoch in pbar:
 
             optimizer.zero_grad()
             total_loss = 0
@@ -155,6 +156,7 @@ class ReMasker:
                     optimizer.zero_grad()
 
             total_loss = (total_loss / (iter + 1)) ** 0.5
+            pbar.set_postfix(loss=total_loss)
             # if total_loss < best_loss:
             #     best_loss = total_loss
             #     torch.save(self.model.state_dict(), self.path)
@@ -166,52 +168,92 @@ class ReMasker:
 
     def transform(self, X_raw: torch.Tensor):
 
+        # X = X_raw.clone()
+        #
+        # min_val = self.norm_parameters["min"]
+        # max_val = self.norm_parameters["max"]
+        #
+        # no, dim = X.shape
+        # X = X.cpu()
+        #
+        # # MinMaxScaler normalization
+        # for i in range(dim):
+        #     X[:, i] = (X[:, i] - min_val[i]) / (max_val[i] - min_val[i] + eps)
+        #
+        # # Set missing
+        # M = 1 - (1 * (np.isnan(X)))
+        # X = np.nan_to_num(X)
+        #
+        # X = torch.from_numpy(X).to(device)
+        # M = M.to(device)
+        #
+        # self.model.eval()
+        #
+        # # Imputed data
+        # with torch.no_grad():
+        #     for i in range(no):
+        #         sample = torch.reshape(X[i], (1, 1, -1))
+        #         mask = torch.reshape(M[i], (1, -1))
+        #         _, pred, _, _ = self.model(sample, mask)
+        #         pred = pred.squeeze(dim=2)
+        #         if i == 0:
+        #             imputed_data = pred
+        #         else:
+        #             imputed_data = torch.cat((imputed_data, pred), 0)
+        #
+        #             # Renormalize
+        # for i in range(dim):
+        #     imputed_data[:, i] = imputed_data[:, i] * (max_val[i] - min_val[i] + eps) + min_val[i]
+        #
+        # if np.all(np.isnan(imputed_data.detach().cpu().numpy())):
+        #     err = "The imputed result contains nan. This is a bug. Please report it on the issue tracker."
+        #     raise RuntimeError(err)
+        #
+        # M = M.cpu()
+        # imputed_data = imputed_data.detach().cpu()
+        # # print('imputed', imputed_data, M)
+        # # print('imputed', M * np.nan_to_num(X_raw.cpu()) + (1 - M) * imputed_data)
+        # return M * np.nan_to_num(X_raw.cpu()) + (1 - M) * imputed_data
         X = X_raw.clone()
-
         min_val = self.norm_parameters["min"]
         max_val = self.norm_parameters["max"]
+        eps = 1e-8
 
-        no, dim = X.shape
+        # Move to CPU for NaN handling
         X = X.cpu()
 
-        # MinMaxScaler normalization
-        for i in range(dim):
-            X[:, i] = (X[:, i] - min_val[i]) / (max_val[i] - min_val[i] + eps)
+        # Vectorized MinMax normalization
+        X = ((X - min_val) / (max_val - min_val + eps)).to(torch.float32)
 
-        # Set missing
-        M = 1 - (1 * (np.isnan(X)))
-        X = np.nan_to_num(X)
+        # Handle missing values
+        M = ~torch.isnan(X)
+        X = torch.nan_to_num(X)
 
-        X = torch.from_numpy(X).to(device)
+        # Back to device
+        X = X.to(device)
         M = M.to(device)
 
         self.model.eval()
-
-        # Imputed data
         with torch.no_grad():
-            for i in range(no):
-                sample = torch.reshape(X[i], (1, 1, -1))
-                mask = torch.reshape(M[i], (1, -1))
-                _, pred, _, _ = self.model(sample, mask)
-                pred = pred.squeeze(dim=2)
-                if i == 0:
-                    imputed_data = pred
-                else:
-                    imputed_data = torch.cat((imputed_data, pred), 0)
+            # Batch all samples at once
+            samples = X.view(X.shape[0], 1, -1)
+            masks = M.view(M.shape[0], -1)
 
-                    # Renormalize
-        for i in range(dim):
-            imputed_data[:, i] = imputed_data[:, i] * (max_val[i] - min_val[i] + eps) + min_val[i]
+            _, preds, _, _ = self.model(samples, masks)
+            preds = preds.squeeze(dim=2)
 
-        if np.all(np.isnan(imputed_data.detach().cpu().numpy())):
-            err = "The imputed result contains nan. This is a bug. Please report it on the issue tracker."
-            raise RuntimeError(err)
+        # Vectorized renormalization
+        preds = preds.cpu()
+        imputed_data = (preds * (max_val - min_val + eps)) + min_val
 
+        # Safety check
+        if torch.isnan(imputed_data).any():
+            raise RuntimeError("The imputed result contains NaNs. Please report this bug.")
+
+        # Return imputed data
         M = M.cpu()
-        imputed_data = imputed_data.detach().cpu()
-        # print('imputed', imputed_data, M)
-        # print('imputed', M * np.nan_to_num(X_raw.cpu()) + (1 - M) * imputed_data)
-        return M * np.nan_to_num(X_raw.cpu()) + (1 - M) * imputed_data
+        # imputed_data = imputed_data.cpu()
+        return M * torch.nan_to_num(X_raw) + (~M) * imputed_data
 
     def fit_transform(self, X: torch.Tensor) -> torch.Tensor:
         """Imputes the provided dataset using the GAIN strategy.

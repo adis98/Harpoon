@@ -173,10 +173,11 @@ def get_dataset(dataset : str, path : str):
 
 def get_args_parser():
     parser = argparse.ArgumentParser('MAE pre-training', add_help=False)
-    parser.add_argument('--dataset', default='california', type=str)
+    parser.add_argument('--dataname', default='california', type=str)
     parser.add_argument('--batch_size', default=64, type=int,
                         help='Batch size per GPU (effective batch size is batch_size * accum_iter * # gpus')
-    parser.add_argument('--max_epochs', default=600, type=int)
+    # parser.add_argument('--max_epochs', default=600, type=int)
+    parser.add_argument('--max_epochs', default=50, type=int)
     parser.add_argument('--accum_iter', default=1, type=int,
                         help='Accumulate gradient iterations (for increasing the effective batch size under memory constraints)')
 
@@ -209,7 +210,7 @@ def get_args_parser():
 
     # Dataset parameters
     parser.add_argument('--device', default='cuda', help='device to use for training / testing')
-    parser.add_argument('--seed', default=666, type=int)
+    parser.add_argument('--seed', default=42, type=int)
 
     parser.add_argument('--overwrite', default=True, help='whether to overwrite default config')
     parser.add_argument('--pin_mem', action='store_false')
