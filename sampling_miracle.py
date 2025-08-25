@@ -12,9 +12,11 @@ from dataset import Preprocessor, get_eval
 from hyperimpute.utils.serialization import load, save
 from hyperimpute.plugins.imputers import Imputers
 import pickle
-
+import logging
+logging.getLogger("absl").setLevel(logging.ERROR)
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 warnings.filterwarnings('ignore')
-
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 parser = argparse.ArgumentParser(description='Missing Value Imputation')
 
 parser.add_argument('--dataname', type=str, default='adult', help='Name of dataset.')
