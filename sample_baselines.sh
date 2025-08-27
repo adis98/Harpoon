@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define the options for the synth_mask parameter
-options_dataset=("adult" "bean" "california" "default" "gesture" "letter" "magic" "news" "shoppers")
+options_dataset=("adult" "bean" "california" "default" "gesture" "letter" "magic" "shoppers")
 options_mask=("MAR" "MCAR" "MNAR")
 options_ratio=("0.25" "0.5" "0.75")
 
@@ -11,16 +11,17 @@ do
   do
     for ratio in "${options_ratio[@]}"
     do
+      python3.12 sampling_harpoon_ohe_basicmanifold.py --dataname $dataset --mask $mask --ratio $ratio
 #      python3.12 sampling_GReaT.py --dataname $dataset --mask $mask --ratio $ratio
 #      python3.12 sampling_repaint.py --dataname $dataset --mask $mask --ratio $ratio
 #      python3.12 sampling_diffputer.py --dataname $dataset --mask $mask --ratio $ratio --num_steps 50 --num_trials 5
 #      python3.12 sampling_remasker.py --dataname $dataset --mask $mask --ratio $ratio
 #      python3.12 sampling_gain.py --dataname $dataset --mask $mask --ratio $ratio
 #      python3.12 sampling_hyperimpute.py --dataname $dataset --mask $mask --ratio $ratio
-      python3.12 sampling_miracle.py --dataname $dataset --mask $mask --ratio $ratio
+#      python3.12 sampling_miracle.py --dataname $dataset --mask $mask --ratio $ratio
 
     done
   done
 done
-sendemail -f aditya.ssr@gmail.com -t aditya.ssr@gmail.com -u "Experiment Complete" -s smtp.gmail.com:587 -o tls=yes -xu aditya.ssr@gmail.com -xp zfclbeznrksnrhfs -m "sample hyperimpute"
+sendemail -f aditya.ssr@gmail.com -t aditya.ssr@gmail.com -u "Experiment Complete" -s smtp.gmail.com:587 -o tls=yes -xu aditya.ssr@gmail.com -xp zfclbeznrksnrhfs -m "sample harpoon basic manifold OHE"
 
