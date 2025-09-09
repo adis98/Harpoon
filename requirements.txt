@@ -1,12 +1,16 @@
 torch == 2.2.2
 numpy == 1.26.4
-openpyxl == 3.1.5
 pandas == 2.2.1
-xlrd == 2.0.2
-openpyxl == 3.1.5
 scikit-learn == 1.6.1
-tqdm
+tqdm~=4.67.1
 
-timm
-hyperimpute
-tabulate
+timm~=1.0.19
+hyperimpute~=0.1.17
+ipython~=8.23.0
+joblib~=1.5.1
+pydantic~=2.11.5
+scipy~=1.12.0
+be_great~=0.0.9
+xgboost~=2.1.4
+matplotlib~=3.8.3
+synthcity~=0.2.12

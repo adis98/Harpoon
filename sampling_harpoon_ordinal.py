@@ -98,7 +98,8 @@ if __name__ == '__main__':
                     cond_loss = torch.sum((1 - mask_float) * (x_0_hat - X_test_gpu) ** 2)
                     grad = torch.autograd.grad(cond_loss, x_t, grad_outputs=torch.ones_like(cond_loss))[0]
 
-                grad_tangent = grad * (1 - torch.sum(grad * normal_vec) / (torch.norm(normal_vec) * torch.norm(grad)))
+                # grad_tangent = grad * (1 - torch.sum(grad * normal_vec) / (torch.norm(normal_vec) * torch.norm(grad)))
+                grad_tangent = grad - (torch.sum(grad * normal_vec) / torch.sum(normal_vec * normal_vec)) * normal_vec
                 x_t = (x_t / torch.sqrt(alpha_t)) - (
                         (1 - alpha_t) / (torch.sqrt(alpha_t) * torch.sqrt(
                     1 - alpha_bar_t))) * sigmas_predicted  # denoise w/o correction
