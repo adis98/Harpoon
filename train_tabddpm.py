@@ -202,10 +202,10 @@ def main(cfg: CFG):
     # ).to(device)
     model = MLPDiffusion(d_in, cfg.d_hidden).to(device)
 
-    if cfg.ckpt_path and os.path.isfile(cfg.ckpt_path):
-        sd = torch.load(cfg.ckpt_path, map_location="cpu")
-        missing, unexpected = model.load_state_dict(sd, strict=False)
-        print(f"[FT] loaded {cfg.ckpt_path}; missing={len(missing)} unexpected={len(unexpected)}")
+    # if cfg.ckpt_path and os.path.isfile(cfg.ckpt_path):
+    #     sd = torch.load(cfg.ckpt_path, map_location="cpu")
+    #     missing, unexpected = model.load_state_dict(sd, strict=False)
+    #     print(f"[FT] loaded {cfg.ckpt_path}; missing={len(missing)} unexpected={len(unexpected)}")
 
     diffusion = GaussianMultinomialDiffusion(
         num_classes=np.array(K) if len(K) > 0 else np.array([0]),
@@ -239,6 +239,7 @@ def main(cfg: CFG):
     os.makedirs(out_dir, exist_ok=True)
     losses = []
     pbar = tqdm(range(cfg.epochs), desc='Training')
+    encode_again = False
     for epoch in pbar:
         loss = 0.0
         for batch in dl:
@@ -246,7 +247,7 @@ def main(cfg: CFG):
             out_dict = {}  # unconditional by default; if conditional, you'd add {"y": y}
             opt.zero_grad(set_to_none=True)
             with torch.cuda.amp.autocast(enabled=(cfg.amp and device.type == "cuda")):
-                loss_multi, loss_gauss = diffusion.mixed_loss(x, out_dict)
+                loss_multi, loss_gauss = diffusion.mixed_loss(x, out_dict, encode_again)
                 loss = loss_multi + loss_gauss
             scaler.scale(loss).backward()
             if cfg.grad_clip is not None:
@@ -271,7 +272,7 @@ def main(cfg: CFG):
         #     break
     # ---- save ----
     # pd.DataFrame(losses).to_csv(f"{out_dir}/loss.csv", index=False)
-    torch.save(diffusion._denoise_fn.state_dict(), f"{out_dir}/tabddpm.pt")
+    # torch.save(diffusion._denoise_fn.state_dict(), f"{out_dir}/tabddpm.pt")
     # torch.save(ema_model.state_dict(), f"{out_dir}/tabddpm_denoiser_ema.pt")
     # with open(f"{out_dir}/tabddpm_preproc_meta.json", "w") as f:
     #     json.dump(
