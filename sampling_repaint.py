@@ -91,13 +91,16 @@ if __name__ == '__main__':
                 alpha_bar_t = diffusion_config['Alpha_bar'][t].to(device)
                 alpha_bar_t_1 = diffusion_config['Alpha_bar'][t - 1].to(device) if t >= 1 else torch.tensor(1).to(
                     device)
-                sigma_t = diffusion_config['Sigma'][t].to(device)
                 sigmas_predicted = model(x_t, timesteps)
                 x_t = (x_t / torch.sqrt(alpha_t)) - (
                         (1 - alpha_t) / (torch.sqrt(alpha_t) * torch.sqrt(1 - alpha_bar_t))) * sigmas_predicted
 
-                x_t += diffusion_config['Sigma'][t] * torch.randn_like(x_t)
-
+                vari = 0.0
+                if t > 0:
+                    vari = (1 - alpha_t) * ((1 - alpha_bar_t_1) / (1 - alpha_bar_t)) * torch.normal(0, 1,
+                                                                                                    size=x_t.shape).to(
+                        device)
+                x_t += vari
                 x_cond_t = torch.sqrt(alpha_bar_t_1) * X_test_gpu + torch.sqrt(1-alpha_bar_t_1) * torch.randn_like(X_test_gpu)
                 x_t = (1-mask_float) * x_cond_t + mask_float * x_t
             X_pred = (x_t * mask_float + (1-mask_float) * X_test_gpu).cpu().numpy()
@@ -130,7 +133,7 @@ if __name__ == '__main__':
         exp_df = pd.read_csv(experiment_path).drop(columns=['Unnamed: 0'])
 
     new_row = {"Dataset": dataname,
-               "Method": "DiffPut_Remastered",
+               "Method": "DiffPuter_Remastered",
                "Mask Type": args.mask,
                "Ratio": ratio,
                "Avg MSE": np.mean(MSEs),

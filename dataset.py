@@ -281,6 +281,7 @@ def get_eval(X_pred, X_true, mask, num_numeric, cat_edge_case=False):
     acc = np.sum(cat_diff) * 100.0/len(cat_diff)
     return mse, acc
 
+
 # def get_eval(dataname, X_recon, X_true, truth_cat_idx, num_num, cat_bin_num, mask, oos=False):
 #     data_dir = f'datasets/{dataname}'
 #

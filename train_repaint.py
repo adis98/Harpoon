@@ -46,6 +46,7 @@ if __name__ == '__main__':
         np.concatenate((np.mean(train_X[:, :num_numeric], axis=0), np.zeros(train_X.shape[1] - num_numeric)), axis=0),
         np.concatenate((np.std(train_X[:, :num_numeric], axis=0), np.ones(train_X.shape[1] - num_numeric)), axis=0))
     in_dim = train_X.shape[1]
+    X_np[:, :num_numeric] = (X_train_np[:, :num_numeric] - mean) / std
     X = (train_X - mean_X) / std_X
     X = torch.tensor(X, dtype=torch.float32)
 
@@ -90,16 +91,5 @@ if __name__ == '__main__':
             total_loss += loss
             optimizer.step()
         scheduler.step(total_loss)
-
-        # if total_loss < best_loss:
-        #     best_loss = total_loss
-        #     patience = 0
-
-        # else:
-        #     patience += 1
-        #     if patience == 50:
-        #         print('Early stopping')
-        #         break
-
         pbar.set_postfix(loss=total_loss)
     torch.save(model.state_dict(), f'{models_dir}/diffputer_selfmade.pt')
