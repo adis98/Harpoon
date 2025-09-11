@@ -33,6 +33,7 @@ if __name__ == '__main__':
     parser.add_argument('--mask', type=str, default='MAR', help='Masking mechanisms.')
     parser.add_argument('--num_trials', type=int, default=5, help='Number of sampling times.')
     parser.add_argument('--ratio', type=str, default="0.25", help='Masking ratio.')
+    parser.add_argument('--loss', type=str, default='mae', help='inference loss type')
 
     args = parser.parse_args()
 
@@ -102,22 +103,18 @@ if __name__ == '__main__':
                     sigmas_predicted = model(x_t, timesteps)
                     x_0_hat = (x_t - torch.sqrt(1 - alpha_bar_t) * sigmas_predicted) / torch.sqrt(alpha_bar_t)
                     normal_vec = (x_0_hat - x_t).detach()
-                    loss1 = torch.sum((1 - mask_float) * abs(x_0_hat - X_test_gpu) ** 1, dim=1)
+                    loss1 = 0.0
+                    if 'mae' in args.loss:
+                        loss1 += torch.sum((1 - mask_float) * abs(x_0_hat - X_test_gpu), dim=1)
+                    elif 'mse' in args.loss:
+                        loss1 += torch.sum((1 - mask_float) * (x_0_hat - X_test_gpu)**2, dim=1)
                     loss2 = 0.0
-                    loss2 = computeCatLoss(x_0_hat, X_test_gpu, num_numeric, prepper.OneHotEncoder.categories_, mask_float)
+                    if 'kld' in args.loss:
+                        loss2 += computeCatLoss(x_0_hat, X_test_gpu, num_numeric, prepper.OneHotEncoder.categories_, mask_float)
                     # loss2 = torch.sum((1 - mask_float) * abs(x_0_hat - X_test_gpu) ** 1, dim=1)
-                    cond_loss = 1.0 * loss1 + 0.0 * loss2
+                    cond_loss = loss1 + loss2
                     grad = torch.autograd.grad(cond_loss, x_t, grad_outputs=torch.ones_like(cond_loss))[0]
-                    # grad_sigmas = torch.autograd.grad(sigmas_predicted, x_t, grad_outputs=torch.ones_like(sigmas_predicted))[0]
 
-                # grad_tangent = grad - (torch.sum(grad * normal_vec) / torch.sum(normal_vec * normal_vec)) * normal_vec
-                # cosinesim_grad = (torch.sum(grad * normal_vec) / (torch.norm(grad) * torch.norm(normal_vec)))
-                # cosinesim_gradtan = (torch.sum(grad_tangent * normal_vec) / (
-                #             torch.norm(grad_tangent) * torch.norm(normal_vec)))
-                # angles_grad = torch.rad2deg(torch.acos(cosinesim_grad))
-                # angles_gradtan = torch.rad2deg(torch.acos(cosinesim_gradtan))
-                # cossim_grad.append(angles_grad.cpu().numpy())
-                # cossim_gradtan.append(angles_gradtan.cpu().numpy())
                 x_t = (x_t / torch.sqrt(alpha_t)) - (
                         (1 - alpha_t) / (torch.sqrt(alpha_t) * torch.sqrt(
                     1 - alpha_bar_t))) * sigmas_predicted  # denoise w/o correction
@@ -125,7 +122,6 @@ if __name__ == '__main__':
                 vari = 0.0
                 if t > 0:
                     vari = (1-alpha_t) * ((1 - alpha_bar_t_1) / (1 - alpha_bar_t)) * torch.normal(0, 1, size=x_t.shape).to(device)
-
                 x_t += vari
                 update = -0.2 * grad  # /torch.norm(grad, dim=1).unsqueeze(1)
                 x_t += update
@@ -159,7 +155,7 @@ if __name__ == '__main__':
         exp_df = pd.read_csv(experiment_path).drop(columns=['Unnamed: 0'])
 
     new_row = {"Dataset": dataname,
-               "Method": f"harpoon_ohe_tubular_bestv",
+               "Method": f"harpoon_ohe_{args.loss}",
                "Mask Type": args.mask,
                "Ratio": ratio,
                "Avg MSE": np.mean(MSEs),
