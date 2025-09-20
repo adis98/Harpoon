@@ -82,34 +82,37 @@ if __name__ == '__main__':
             coeff_1 = torch.sqrt(alpha_bar_t)
             coeff_2 = torch.sqrt(1 - alpha_bar_t)
             batch_noised = coeff_1 * X_batch + coeff_2 * sigmas
+            mask = torch.ones(batch_noised.shape)
+            mask[:, num_numeric:] = 0.0
+            mask = mask.to(device)
             with torch.enable_grad():
                 batch_noised.requires_grad_(True)
                 batch_noised = batch_noised.to(device)
                 sigmas_predicted = model(batch_noised, timesteps)
                 x_0_hats = (batch_noised - torch.sqrt(1 - alpha_bar_t) * sigmas_predicted) / torch.sqrt(alpha_bar_t)
-                loss1 = torch.sum((x_0_hats - X_batch)**2)
-                loss2 = computeCatLoss(x_0_hats, X_batch, num_numeric, prepper.OneHotEncoder.categories_)
-                loss3 = torch.sum(abs(x_0_hats - X_batch))
-                cond_loss = loss1 + loss2
+                loss1 = torch.sum(mask * ((x_0_hats - X_batch)**2))
+                # loss2 = computeCatLoss(x_0_hats, X_batch, num_numeric, prepper.OneHotEncoder.categories_)
+                loss3 = torch.sum(mask * (abs(x_0_hats - X_batch)))
+                # cond_loss = loss1 + loss2
                 cond_loss_no_KLD = loss1
                 cond_loss_MAE = loss3
-                cond_loss_MAE_CE = loss3 + loss2
-                grads_v1 = torch.autograd.grad(cond_loss, batch_noised, grad_outputs=torch.ones_like(cond_loss), retain_graph=True)[0]
+                # cond_loss_MAE_CE = loss3 + loss2
+                # grads_v1 = torch.autograd.grad(cond_loss, batch_noised, grad_outputs=torch.ones_like(cond_loss), retain_graph=True)[0]
                 grads_v2 = torch.autograd.grad(cond_loss_no_KLD, batch_noised, grad_outputs=torch.ones_like(cond_loss_no_KLD), retain_graph=True)[0]
                 grads_v3 = torch.autograd.grad(cond_loss_MAE, batch_noised, grad_outputs=torch.ones_like(cond_loss_MAE), retain_graph=True)[0]
-                grads_v4 = torch.autograd.grad(cond_loss_MAE_CE, batch_noised, grad_outputs=torch.ones_like(cond_loss_MAE_CE))[0]
+                # grads_v4 = torch.autograd.grad(cond_loss_MAE_CE, batch_noised, grad_outputs=torch.ones_like(cond_loss_MAE_CE))[0]
 
             vectors = x_0_hats - batch_noised
             normed_vectors = vectors / (vectors.norm(dim=1, keepdim=True))
-            angles_with_KLD = torch.rad2deg(torch.acos(torch.sum(grads_v1 * vectors, dim=1)/(torch.norm(grads_v1, dim=1) * torch.norm(vectors, dim=1))))
+            # angles_with_KLD = torch.rad2deg(torch.acos(torch.sum(grads_v1 * vectors, dim=1)/(torch.norm(grads_v1, dim=1) * torch.norm(vectors, dim=1))))
             angles_no_KLD = torch.rad2deg(torch.acos(torch.sum(grads_v2 * vectors, dim=1)/(torch.norm(grads_v2, dim=1) * torch.norm(vectors, dim=1))))
             angles_MAE = torch.rad2deg(torch.acos(
                 torch.sum(grads_v3 * vectors, dim=1) / (torch.norm(grads_v3, dim=1) * torch.norm(vectors, dim=1))))
-            angles_MAE_CE = torch.rad2deg(torch.acos(
-                torch.sum(grads_v4 * vectors, dim=1) / (torch.norm(grads_v4, dim=1) * torch.norm(vectors, dim=1))))
+            # angles_MAE_CE = torch.rad2deg(torch.acos(
+            #     torch.sum(grads_v4 * vectors, dim=1) / (torch.norm(grads_v4, dim=1) * torch.norm(vectors, dim=1))))
 
-            avg_angles_with_KLD.append(torch.mean(angles_with_KLD).cpu().numpy())
-            std_angles_with_KLD.append(torch.std(angles_with_KLD).cpu().numpy())
+            # avg_angles_with_KLD.append(torch.mean(angles_with_KLD).cpu().numpy())
+            # std_angles_with_KLD.append(torch.std(angles_with_KLD).cpu().numpy())
 
             avg_angles_no_KLD.append(torch.mean(angles_no_KLD).cpu().numpy())
             std_angles_no_KLD.append(torch.std(angles_no_KLD).cpu().numpy())
@@ -117,49 +120,49 @@ if __name__ == '__main__':
             avg_angles_MAE.append(torch.mean(angles_MAE).cpu().numpy())
             std_angles_MAE.append(torch.std(angles_MAE).cpu().numpy())
 
-            avg_angles_MAE_CE.append(torch.mean(angles_MAE_CE).cpu().numpy())
-            std_angles_MAE_CE.append(torch.std(angles_MAE_CE).cpu().numpy())
+            # avg_angles_MAE_CE.append(torch.mean(angles_MAE_CE).cpu().numpy())
+            # std_angles_MAE_CE.append(torch.std(angles_MAE_CE).cpu().numpy())
 
     Ts = np.arange(args.timesteps - 1, -1, -1)
-    avg_angles_with_KLD = np.array(avg_angles_with_KLD)
-    std_angles_with_KLD = np.array(std_angles_with_KLD)
+    # avg_angles_with_KLD = np.array(avg_angles_with_KLD)
+    # std_angles_with_KLD = np.array(std_angles_with_KLD)
     avg_angles_no_KLD = np.array(avg_angles_no_KLD)
     std_angles_no_KLD = np.array(std_angles_no_KLD)
     avg_angles_MAE = np.array(avg_angles_MAE)
     std_angles_MAE = np.array(std_angles_MAE)
-    avg_angles_MAE_CE = np.array(avg_angles_MAE_CE)
-    std_angles_MAE_CE = np.array(std_angles_MAE_CE)
+    # avg_angles_MAE_CE = np.array(avg_angles_MAE_CE)
+    # std_angles_MAE_CE = np.array(std_angles_MAE_CE)
     # Create the plot
     # Create side-by-side subplots
 
     plt.ylim(0, 180)
     # Plot the mean line
-    if args.dataname in ['adult', 'default', 'shoppers']:
-        plt.plot(Ts, avg_angles_with_KLD, color='green', label='with Cross Entropy + MSE')
-        plt.plot(Ts, avg_angles_MAE_CE, color='red', label='with MAE + Cross Entropy')
+    # if args.dataname in ['adult', 'default', 'shoppers']:
+    #     plt.plot(Ts, avg_angles_with_KLD, color='green', label='with Cross Entropy + MSE')
+    #     plt.plot(Ts, avg_angles_MAE_CE, color='red', label='with MAE + Cross Entropy')
     plt.plot(Ts, avg_angles_no_KLD, color='orange', label='with MSE only')
     plt.plot(Ts, avg_angles_MAE, color='blue', label='with MAE only')
 
     plt.axhline(y=90, color='black', linestyle='-', linewidth=2, label="90 degrees")
 
     # Add the "cloud" of standard deviation
-    if args.dataname in ['adult', 'default', 'shoppers']:
-        plt.fill_between(
-            Ts,
-            avg_angles_with_KLD - std_angles_with_KLD,
-            avg_angles_with_KLD + std_angles_with_KLD,
-            color='green',
-            alpha=0.2,
-            # label='±1 Std Dev'
-        )
-        plt.fill_between(
-            Ts,
-            avg_angles_MAE_CE - std_angles_MAE_CE,
-            avg_angles_MAE_CE + std_angles_MAE_CE,
-            color='red',
-            alpha=0.2,
-            # label='±1 Std Dev'
-        )
+    # if args.dataname in ['adult', 'default', 'shoppers']:
+    #     plt.fill_between(
+    #         Ts,
+    #         avg_angles_with_KLD - std_angles_with_KLD,
+    #         avg_angles_with_KLD + std_angles_with_KLD,
+    #         color='green',
+    #         alpha=0.2,
+    #         # label='±1 Std Dev'
+    #     )
+    #     plt.fill_between(
+    #         Ts,
+    #         avg_angles_MAE_CE - std_angles_MAE_CE,
+    #         avg_angles_MAE_CE + std_angles_MAE_CE,
+    #         color='red',
+    #         alpha=0.2,
+    #         # label='±1 Std Dev'
+    #     )
     plt.fill_between(
         Ts,
         avg_angles_no_KLD - std_angles_no_KLD,
@@ -187,4 +190,5 @@ if __name__ == '__main__':
     plt.title(
         f"Avg. angles between gradients and denoiser's\n ground truth estimate for {args.dataname}")
     plt.legend()
-    plt.savefig(f'experiments/tubular_region_plots/gradient_angles_{args.dataname}.pdf')
+    plt.show()
+    # plt.savefig(f'experiments/tubular_region_plots/gradient_angles_{args.dataname}.pdf')

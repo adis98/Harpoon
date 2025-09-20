@@ -28,6 +28,7 @@ parser.add_argument('--beta_T', type=float, default=0.02, help='last variance sc
 parser.add_argument('--mask', type=str, default='MAR', help='Masking mechanisms.')
 parser.add_argument('--num_trials', type=int, default=5, help='Number of sampling times.')
 parser.add_argument('--ratio', type=str, default="0.25", help='Masking ratio.')
+parser.add_argument('--loss', type=str, default='mae', help='inference loss type')
 
 args = parser.parse_args()
 
@@ -95,17 +96,26 @@ if __name__ == '__main__':
                     sigmas_predicted = model(x_t, timesteps)
                     x_0_hat = (x_t - torch.sqrt(1 - alpha_bar_t) * sigmas_predicted) / torch.sqrt(alpha_bar_t)
                     normal_vec = (x_0_hat - x_t).detach()
-                    cond_loss = torch.sum((1 - mask_float) * (x_0_hat - X_test_gpu) ** 2)
+                    loss1 = 0.0
+                    if 'mae' in args.loss:
+                        loss1 += torch.sum((1 - mask_float) * abs(x_0_hat - X_test_gpu), dim=1)
+                    elif 'mse' in args.loss:
+                        loss1 += torch.sum((1 - mask_float) * (x_0_hat - X_test_gpu)**2, dim=1)
+                    cond_loss = loss1
                     grad = torch.autograd.grad(cond_loss, x_t, grad_outputs=torch.ones_like(cond_loss))[0]
 
-                # grad_tangent = grad * (1 - torch.sum(grad * normal_vec) / (torch.norm(normal_vec) * torch.norm(grad)))
-                grad_tangent = grad - (torch.sum(grad * normal_vec) / torch.sum(normal_vec * normal_vec)) * normal_vec
                 x_t = (x_t / torch.sqrt(alpha_t)) - (
                         (1 - alpha_t) / (torch.sqrt(alpha_t) * torch.sqrt(
                     1 - alpha_bar_t))) * sigmas_predicted  # denoise w/o correction
 
-                x_t += diffusion_config['Sigma'][t] * torch.randn_like(x_t)  # stochasticity
-                x_t -= 0.1 * grad_tangent
+                vari = 0.0
+                if t > 0:
+                    vari = (1 - alpha_t) * ((1 - alpha_bar_t_1) / (1 - alpha_bar_t)) * torch.normal(0, 1,
+                                                                                                    size=x_t.shape).to(
+                        device)
+                x_t += vari
+                update = -0.2 * grad  # /torch.norm(grad, dim=1).unsqueeze(1)
+                x_t += update
             X_pred = (x_t * mask_float + (1 - mask_float) * X_test_gpu).cpu().numpy()
             X_pred[:, num_numeric:] = (X_pred[:, num_numeric:] * std_X[num_numeric:]) + mean_X[num_numeric:]
             imputed_decoded = prepper.decodeNp('Ordinal', X_pred)
@@ -135,7 +145,7 @@ if __name__ == '__main__':
         exp_df = pd.read_csv(experiment_path).drop(columns=['Unnamed: 0'])
 
     new_row = {"Dataset": dataname,
-               "Method": "Harpoon_ordinal_basicmanifold",
+               "Method": f"Harpoon_ordinal_{args.loss}",
                "Mask Type": args.mask,
                "Ratio": ratio,
                "Avg MSE": np.mean(MSEs),
