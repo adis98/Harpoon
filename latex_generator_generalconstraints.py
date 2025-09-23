@@ -40,13 +40,13 @@ if __name__ == "__main__":
                     row += ["--", "--"]
                 else:
                     v = sub.iloc[0]
-                    row.append(f"{v['Avg ViolationAcc']:.2f} $\\pm$ {v['Std ViolationAcc']:.2f}")
-                    row.append(f"{v['Avg Alpha-P']:.2f} $\\pm$ {v['Std Alpha-P']:.2f}")
+                    row.append(f"{v['Avg ViolationAcc']:.2f}$_{{{v['Std ViolationAcc']:.2f}}}$")
+                    row.append(f"{v['Avg Alpha-P']:.2f}$_{{{v['Std Alpha-P']:.2f}}}$")
             latex.append(" & ".join(row) + " \\\\")
         latex.append("\\midrule")
 
     latex.append("\\bottomrule")
-    latex.append("\\end{tabular}")
+    latex.append("\\end{tabular}}")
 
     # Print final LaTeX
     print("\n".join(latex))
