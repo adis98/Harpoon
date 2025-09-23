@@ -256,36 +256,7 @@ def main(cfg: CFG):
             scaler.step(opt)
             scaler.update()
         pbar.set_postfix(loss=loss)
-            # update_ema(ema_model.parameters(), diffusion._denoise_fn.parameters(), decay=cfg.ema_decay)
-
-            # global_step += 1
-            # if global_step % 100 == 0:
-            #     lm = float(loss_multi.detach().cpu())
-            #     lg = float(loss_gauss.detach().cpu())
-            #     # losses.append({"step": global_step, "mloss": lm, "gloss": lg, "loss": lm + lg})
-            #     print(f"[{epoch+1}/{cfg.epochs}] step {global_step}: M {lm:.4f} | G {lg:.4f} | Sum {(lm+lg):.4f}")
-
-        #     if cfg.dry_run_steps and global_step >= cfg.dry_run_steps:
-        #         print(f"[INFO] Dry run complete after {cfg.dry_run_steps} steps.")
-        #         break
-        # if cfg.dry_run_steps and global_step >= cfg.dry_run_steps:
-        #     break
-    # ---- save ----
-    # pd.DataFrame(losses).to_csv(f"{out_dir}/loss.csv", index=False)
-    # torch.save(diffusion._denoise_fn.state_dict(), f"{out_dir}/tabddpm.pt")
-    # torch.save(ema_model.state_dict(), f"{out_dir}/tabddpm_denoiser_ema.pt")
-    # with open(f"{out_dir}/tabddpm_preproc_meta.json", "w") as f:
-    #     json.dump(
-    #         {
-    #             "num_numeric": int(num_numeric),
-    #             "K": [int(k) for k in K],
-    #             "mean": mean.tolist(),
-    #             "std": std.tolist(),
-    #             "cat_categories": [list(map(str, cats)) for cats in pre.OrdinalEncoder.categories_],
-    #         },
-    #         f,
-    #     )
-    #
+    torch.save(diffusion._denoise_fn.state_dict(), f"{out_dir}/tabddpm.pt")
     # # ---- quick sampling demo (works for both conditional/unconditional) ----
     # try:
     #     B = min(128, cfg.batch_size)

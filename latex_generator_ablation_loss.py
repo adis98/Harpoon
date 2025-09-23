@@ -25,14 +25,7 @@ def format_for_latex_std(x):
 
 def pivot_mask_acc(mask_type):
     method_order = [
-        "GAIN",
-        "Miracle",
-        "GReaT",
-        "Hyperimpute",
-        "Remasker",
-        "DiffPuter",
-        "Harpoon-MSE",
-        "Harpoon"
+        "MAE", "MSE", "MAE + Cross-Entropy", "MSE + Cross-Entropy"
     ]
     df_mask = df[df['Mask Type'] == mask_type].copy()
     df_mask = df_mask[df_mask['Dataset'].isin(['adult', 'default', 'shoppers'])]
@@ -58,14 +51,7 @@ def pivot_mask_acc(mask_type):
 
 def pivot_mask(mask_type):
     method_order = [
-        "GAIN",
-        "Miracle",
-        "GReaT",
-        "Hyperimpute",
-        "Remasker",
-        "DiffPuter",
-        "Harpoon-MSE",
-        "Harpoon"
+        "MAE", "MSE", "MAE + Cross-Entropy", "MSE + Cross-Entropy"
     ]
     df_mask = df[df['Mask Type'] == mask_type].copy()
     df_mask['Avg MSE'] = df_mask['Avg MSE'].apply(format_for_latex)
@@ -161,23 +147,21 @@ if __name__ == "__main__":
     df = pd.read_csv("experiments/imputation.csv").drop(columns=['Unnamed: 0'])
     # Only keep relevant columns
     df = df[['Dataset', 'Method', 'Mask Type', 'Ratio', 'Avg MSE', 'STD of MSE', 'Avg Acc', 'STD of Acc']]
-    df = df[df['Dataset'] != 'news']
-    df = df[df['Method'] != 'DiffPuter']
-    df = df[df['Method'] != 'Hyperimpute']
+    df = df[df['Dataset'].isin(['adult', 'default', 'shoppers'])]
+    df = df[df['Method'].isin(['harpoon_ohe_mae', 'harpoon_ohe_mae_kld', 'harpoon_ohe_mse', 'harpoon_ohe_mse_kld'])]
 
     df = df[df['Ratio'].isin([0.25, 0.5, 0.75])]
     df['Ratio'] = df['Ratio'].map(lambda x: f"{x: .2f}")
 
     df['Method'] = df['Method'].replace(
-        {'DiffPuter_Remastered': 'DiffPuter', 'harpoon_ohe_mae': 'Harpoon', 'harpoon_ohe_mse': 'Harpoon-MSE'})
-    df = df[df['Method'] != 'Harpoon-MSE']
+        {'harpoon_ohe_mae': 'MAE', 'harpoon_ohe_mse': 'MSE', 'harpoon_ohe_mse_kld': 'MSE + Cross-Entropy', 'harpoon_ohe_mae_kld': 'MAE + Cross-Entropy'})
 
     # Function to create pivot table per mask type
     if args.task == 'mse':
         table_mse, table_std = pivot_mask(args.mask)
-        latex = generate_latex_multirow(table_mse, table_std, f'Imputation MSE for {args.mask} mask. Standard deviation in subscript.', f'tab:{args.mask}{args.task}')
+        latex = generate_latex_multirow(table_mse, table_std, f'Imputation MSE under different inference-time losses for \\textsc{{harpoon}}. Standard deviation in subscript.', f'tab:{args.mask}{args.task}')
     else:
         table_mse, table_std = pivot_mask_acc(args.mask)
-        latex = generate_latex_multirow(table_mse, table_std, f'Imputation Accuracy for {args.mask} mask. Standard deviation in subscript.', f'tab:{args.mask}{args.task}')
+        latex = generate_latex_multirow(table_mse, table_std, f'Imputation Accuracy under different inference-time losses for \\textsc{{harpoon}}. Standard deviation in subscript.', f'tab:{args.mask}{args.task}')
 
     print(latex)

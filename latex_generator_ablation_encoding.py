@@ -25,14 +25,7 @@ def format_for_latex_std(x):
 
 def pivot_mask_acc(mask_type):
     method_order = [
-        "GAIN",
-        "Miracle",
-        "GReaT",
-        "Hyperimpute",
-        "Remasker",
-        "DiffPuter",
-        "Harpoon-MSE",
-        "Harpoon"
+        "One-Hot", "Integer"
     ]
     df_mask = df[df['Mask Type'] == mask_type].copy()
     df_mask = df_mask[df_mask['Dataset'].isin(['adult', 'default', 'shoppers'])]
@@ -58,14 +51,7 @@ def pivot_mask_acc(mask_type):
 
 def pivot_mask(mask_type):
     method_order = [
-        "GAIN",
-        "Miracle",
-        "GReaT",
-        "Hyperimpute",
-        "Remasker",
-        "DiffPuter",
-        "Harpoon-MSE",
-        "Harpoon"
+        "One-Hot", "Integer"
     ]
     df_mask = df[df['Mask Type'] == mask_type].copy()
     df_mask['Avg MSE'] = df_mask['Avg MSE'].apply(format_for_latex)
@@ -96,16 +82,16 @@ def generate_latex_multirow(pivot_mse, pivot_std, caption, label):
         first = True
         group_num = group.apply(pd.to_numeric, errors='coerce').fillna(np.inf)
         if 'acc' in label:
-            best_indices = group_num.apply(lambda col: col.nlargest(2).index.tolist())
+            best_indices = group_num.apply(lambda col: col.nlargest(1).index.tolist())
         else:
-            best_indices = group_num.apply(lambda col: col.nsmallest(2).index.tolist())
+            best_indices = group_num.apply(lambda col: col.nsmallest(1).index.tolist())
         best_mask = pd.DataFrame(False, index=group_num.index, columns=group_num.columns)
         secondbest_mask = pd.DataFrame(False, index=group_num.index, columns=group_num.columns)
-        for column in best_mask.columns:
-            best_loc = best_indices.loc[0, column]
-            secondbest_loc = best_indices.loc[1, column]
-            best_mask.loc[best_loc, column] = True
-            secondbest_mask.loc[secondbest_loc, column] = True
+        # for column in best_mask.columns:
+        #     best_loc = best_indices.loc[0, column]
+        #     secondbest_loc = best_indices.loc[1, column]
+        #     best_mask.loc[best_loc, column] = True
+        #     secondbest_mask.loc[secondbest_loc, column] = True
 
         # Now build formatted strings (mean$_{std}$) and apply bold/underline
         group_fmt = group.copy()
@@ -161,23 +147,21 @@ if __name__ == "__main__":
     df = pd.read_csv("experiments/imputation.csv").drop(columns=['Unnamed: 0'])
     # Only keep relevant columns
     df = df[['Dataset', 'Method', 'Mask Type', 'Ratio', 'Avg MSE', 'STD of MSE', 'Avg Acc', 'STD of Acc']]
-    df = df[df['Dataset'] != 'news']
-    df = df[df['Method'] != 'DiffPuter']
-    df = df[df['Method'] != 'Hyperimpute']
+    df = df[df['Dataset'].isin(['adult', 'default', 'shoppers'])]
+    df = df[df['Method'].isin(['harpoon_ohe_mae', 'Harpoon_ordinal_mae'])]
 
     df = df[df['Ratio'].isin([0.25, 0.5, 0.75])]
     df['Ratio'] = df['Ratio'].map(lambda x: f"{x: .2f}")
 
     df['Method'] = df['Method'].replace(
-        {'DiffPuter_Remastered': 'DiffPuter', 'harpoon_ohe_mae': 'Harpoon', 'harpoon_ohe_mse': 'Harpoon-MSE'})
-    df = df[df['Method'] != 'Harpoon-MSE']
+        {'harpoon_ohe_mae': 'One-Hot', 'Harpoon_ordinal_mae': 'Integer'})
 
     # Function to create pivot table per mask type
     if args.task == 'mse':
         table_mse, table_std = pivot_mask(args.mask)
-        latex = generate_latex_multirow(table_mse, table_std, f'Imputation MSE for {args.mask} mask. Standard deviation in subscript.', f'tab:{args.mask}{args.task}')
+        latex = generate_latex_multirow(table_mse, table_std, f'Imputation MSE under different encodings for \\textsc{{harpoon}}.', f'tab:encodingmse')
     else:
         table_mse, table_std = pivot_mask_acc(args.mask)
-        latex = generate_latex_multirow(table_mse, table_std, f'Imputation Accuracy for {args.mask} mask. Standard deviation in subscript.', f'tab:{args.mask}{args.task}')
+        latex = generate_latex_multirow(table_mse, table_std, f'Imputation Accuracy under different encodings for \\textsc{{harpoon}}.', f'tab:encodingacc')
 
     print(latex)
