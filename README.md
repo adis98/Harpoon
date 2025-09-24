@@ -1,34 +1,40 @@
-# DiffPuter
-Official Implementation of DiffPuter: Empowering Diffusion Models for Missing Data Imputation, at ICLR 2025
+# Harpoon
 
+**Harpoon** is a framework for conditional tabular data generation and imputation using diffusion models with manifold-guided updates.  
 
-## Installing Dependencies
-To run experiments of all the baselines, we have to create three different environments.
+---
 
+## Repository Structure
 
-```
-conda create -n diffputer python=3.12       
-conda activate diffputer
-pip install -r requirements/diffputer.txt
-```
+The repository is organized to clearly separate training, sampling, and experiments:
 
-## Preparing Datasets
-Run the following command to prepare all the datasets, splits and masks.
+- **Training Scripts (`train_*.py`)**  
+  Scripts for training models on different baselines and encodings (e.g., Harpoon, TabDDPM, GReaT, RePaint).
 
-```
-python download_and_process.py
-```
+- **Sampling Scripts (`sampling_*.py`)**  
+  Scripts for generating samples or imputations using trained models. Includes general constraints, OHE/ordinal handling, and manifold-based updates.
 
-## Reproducing the results
+- **Experiments (`experiments/`)**  
+  Stores experimental setups, batch scripts, and results from different runs.  
 
+- **Datasets (`datasets/`)**  
+  Scripts and folders for preparing and managing datasets, including baseline-specific subfolders.
 
-To run DiffPuter on a single dataset under a single mask, use the following command
-```
-conda activate diffputer
-python main.py --dataname [NAME_OF_DATASET] --split_idx [MASK_IDX] 
-```
+- **Visualization (`visualization/`)**  
+  Manifold illustrations.
 
-[NAME_OF_DATASET]: california magic bean gesture letter adult default shoppers news
-[MASK_IDX]: 0 1 2 3 4 5 6 7 8 9
+- **Utility Scripts**  
+  - `utils.py` – general-purpose utilities  
+  - `dataset.py` – dataset handling and constraints  
+  - `diffusion_utils.py` – sampling and model utilities  
+  - `generate_mask.py` – missing data masks  
+  - `download_and_process.py` – dataset download and preprocessing  
+
+- **LaTeX Generators (`latex_generator_*.py`)**  
+  Scripts for generating tables of experiment results.
+
+- **Tubular Neighbourhood Estimation (`tubular_neighbourhood_estimator_*.py`)**  
+  Scripts for empirically estimating orthogonality.  
+
 
 
