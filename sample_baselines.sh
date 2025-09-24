@@ -27,5 +27,4 @@ do
     done
   done
 done
-sendemail -f aditya.ssr@gmail.com -t aditya.ssr@gmail.com -u "Experiment Complete" -s smtp.gmail.com:587 -o tls=yes -xu aditya.ssr@gmail.com -xp zfclbeznrksnrhfs -m "sample repaint"
 
