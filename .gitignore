@@ -13,3 +13,4 @@ saved_models/
 *.DS_Store
 datasets/.DS_Store
 .DS_Store
+workspace/
