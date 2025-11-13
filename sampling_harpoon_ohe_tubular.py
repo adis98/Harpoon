@@ -14,6 +14,7 @@ from dataset import Preprocessor, get_eval
 from utils import calc_diffusion_hyperparams
 import matplotlib.pyplot as plt
 from sampling_harpoon_ohe_basicmanifold_kld import computeCatLoss
+from timeit import default_timer as timer
 
 warnings.filterwarnings('ignore')
 
@@ -34,6 +35,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_trials', type=int, default=5, help='Number of sampling times.')
     parser.add_argument('--ratio', type=str, default="0.25", help='Masking ratio.')
     parser.add_argument('--loss', type=str, default='mae', help='inference loss type')
+    parser.add_argument('--runtime_test', type=bool, default=False, help='store runtime?')
 
     args = parser.parse_args()
 
@@ -81,6 +83,7 @@ if __name__ == '__main__':
     model.eval()
     mask_tests = torch.tensor(test_masks)
     MSEs, ACCs = [], []
+    exec_times = []
     rec_Xs = []
     cossim_grad = []
     cossim_gradtan = []
@@ -90,6 +93,7 @@ if __name__ == '__main__':
             mask_test = mask_tests[trial]
             mask_float = mask_test.float().to(device)
             x_t = torch.randn_like(X_test).to(device)
+            start = timer()
             for t in range(args.timesteps - 1, -1, -1):
                 timesteps = torch.full(size=(x_t.shape[0],), fill_value=t).to(device)
                 alpha_t = diffusion_config['Alpha'][t].to(device)
@@ -125,6 +129,9 @@ if __name__ == '__main__':
                 x_t += vari
                 update = -0.2 * grad  # /torch.norm(grad, dim=1).unsqueeze(1)
                 x_t += update
+            end = timer()
+            diff = end - start
+            exec_times.append(diff)
             X_pred = (x_t * mask_float + (1 - mask_float) * X_test_gpu).cpu().numpy()
             X_true = X_test.numpy()
             X_true_dec = prepper.decodeNp(scheme='OHE', arr=X_true)
@@ -135,6 +142,43 @@ if __name__ == '__main__':
 
     MSEs = np.array(MSEs)
     ACCs = np.array(ACCs)
+    arr_time = np.array(exec_times)
+    if args.runtime_test:
+        experiment_path = f'experiments/runtime.csv'
+        directory = os.path.dirname(experiment_path)
+        if directory and not os.path.exists(directory):
+            os.makedirs(directory)
+        if not os.path.exists(experiment_path):
+            columns = [
+                "Dataset",
+                "Method",
+                "Mask Type",
+                "Ratio",
+                "Avg MSE",
+                "STD of MSE",
+                "Avg Acc",
+                "STD of Acc",
+                "Avg Runtime",
+                "STD of Runtime"
+            ]
+            exp_df = pd.DataFrame(columns=columns)
+        else:
+            exp_df = pd.read_csv(experiment_path).drop(columns=['Unnamed: 0'])
+
+        new_row = {"Dataset": dataname,
+                   "Method": f"harpoon_ohe_{args.loss}",
+                   "Mask Type": args.mask,
+                   "Ratio": ratio,
+                   "Avg MSE": np.mean(MSEs),
+                   "STD of MSE": np.std(MSEs),
+                   "Avg Acc": np.mean(ACCs),
+                   "STD of Acc": np.std(ACCs),
+                   "Avg Runtime": np.mean(arr_time),
+                   "STD of Runtime": np.std(arr_time)
+                   }
+        new_df = pd.concat([exp_df, pd.DataFrame([new_row])], ignore_index=True)
+        new_df.to_csv(experiment_path)
+        exit()
     experiment_path = f'experiments/imputation.csv'
     directory = os.path.dirname(experiment_path)
     if directory and not os.path.exists(directory):

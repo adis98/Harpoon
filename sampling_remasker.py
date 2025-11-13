@@ -12,6 +12,7 @@ from dataset import Preprocessor, get_eval
 from hyperimpute.utils.serialization import load, save
 from hyperimpute.plugins.imputers import Imputers
 import pickle
+from timeit import default_timer as timer
 
 warnings.filterwarnings('ignore')
 
@@ -22,6 +23,7 @@ parser.add_argument('--gpu', type=int, default=0, help='GPU index.')
 parser.add_argument('--mask', type=str, default='MAR', help='Masking mechanisms.')
 parser.add_argument('--num_trials', type=int, default=5, help='Number of sampling times.')
 parser.add_argument('--ratio', type=str, default="0.25", help='Masking ratio.')
+parser.add_argument('--runtime_test', type=bool, default=False, help='store runtime?')
 
 args = parser.parse_args()
 
@@ -73,13 +75,18 @@ if __name__ == '__main__':
         imputer = pickle.load(f)
 
     MSEs, ACCs = [], []
+    exec_times = []
     with torch.no_grad():
         for trial in tqdm(range(num_trials), desc='Out-of-sample imputation'):
             mask_test = orig_mask[trial]
             X_test_masked = X_test.copy()
             X_test_masked[mask_test] = np.nan
             X_test_masked_t = torch.tensor(X_test_masked, dtype=torch.float32)
+            start = timer()
             imputed = imputer.transform(X_test_masked_t).numpy()
+            end = timer()
+            diff = end - start
+            exec_times.append(diff)
             imputed[:, num_numeric:] = (imputed[:, num_numeric:] * std_X[num_numeric:]) + mean_X[num_numeric:]
             imputed_decoded = prepper.decodeNp('Ordinal', imputed)
             mse, acc = get_eval(imputed_decoded, X_test_eval, mask_test, num_numeric)
@@ -88,6 +95,43 @@ if __name__ == '__main__':
 
     MSEs = np.array(MSEs)
     ACCs = np.array(ACCs)
+    arr_time = np.array(exec_times)
+    if args.runtime_test:
+        experiment_path = f'experiments/runtime.csv'
+        directory = os.path.dirname(experiment_path)
+        if directory and not os.path.exists(directory):
+            os.makedirs(directory)
+        if not os.path.exists(experiment_path):
+            columns = [
+                "Dataset",
+                "Method",
+                "Mask Type",
+                "Ratio",
+                "Avg MSE",
+                "STD of MSE",
+                "Avg Acc",
+                "STD of Acc",
+                "Avg Runtime",
+                "STD of Runtime"
+            ]
+            exp_df = pd.DataFrame(columns=columns)
+        else:
+            exp_df = pd.read_csv(experiment_path).drop(columns=['Unnamed: 0'])
+
+        new_row = {"Dataset": dataname,
+                   "Method": "Remasker",
+                   "Mask Type": args.mask,
+                   "Ratio": ratio,
+                   "Avg MSE": np.mean(MSEs),
+                   "STD of MSE": np.std(MSEs),
+                   "Avg Acc": np.mean(ACCs),
+                   "STD of Acc": np.std(ACCs),
+                   "Avg Runtime": np.mean(arr_time),
+                   "STD of Runtime": np.std(arr_time)
+                   }
+        new_df = pd.concat([exp_df, pd.DataFrame([new_row])], ignore_index=True)
+        new_df.to_csv(experiment_path)
+        exit()
     experiment_path = f'experiments/imputation.csv'
     directory = os.path.dirname(experiment_path)
     if directory and not os.path.exists(directory):

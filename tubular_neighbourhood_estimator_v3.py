@@ -102,7 +102,8 @@ if __name__ == '__main__':
                 grads_v3 = torch.autograd.grad(cond_loss_MAE, batch_noised, grad_outputs=torch.ones_like(cond_loss_MAE), retain_graph=True)[0]
                 grads_v4 = torch.autograd.grad(cond_loss_MAE_CE, batch_noised, grad_outputs=torch.ones_like(cond_loss_MAE_CE))[0]
 
-            vectors = x_0_hats - batch_noised
+            # vectors = x_0_hats - batch_noised
+            vectors = torch.sqrt(1-alpha_bar_t) * sigmas_predicted
             normed_vectors = vectors / (vectors.norm(dim=1, keepdim=True))
             angles_with_KLD = torch.rad2deg(torch.acos(torch.sum(grads_v1 * vectors, dim=1)/(torch.norm(grads_v1, dim=1) * torch.norm(vectors, dim=1))))
             angles_no_KLD = torch.rad2deg(torch.acos(torch.sum(grads_v2 * vectors, dim=1)/(torch.norm(grads_v2, dim=1) * torch.norm(vectors, dim=1))))
@@ -189,5 +190,5 @@ if __name__ == '__main__':
     # plt.title(
     #     f"Avg. angles between gradients and denoiser's\n ground truth estimate for {args.dataname}")
     plt.legend(fontsize=15)
-    # plt.show()
-    plt.savefig(f'experiments/tubular_region_plots/gradient_angles_{args.dataname}.pdf', bbox_inches='tight')
+    plt.show()
+    # plt.savefig(f'experiments/tubular_region_plots/gradient_angles_{args.dataname}.pdf', bbox_inches='tight')

@@ -530,6 +530,7 @@ def constrainDataset(dataname, constraint, prepper):
     rangecol = None
     bound_type = None
     bound = None
+    category = None
     if dataname == 'adult':
         if constraint == 'range':
             const_df = df[(df['0'] >= 50)]
@@ -537,12 +538,14 @@ def constrainDataset(dataname, constraint, prepper):
             rangecol = list(const_df.columns[prepper.info['num_col_idx']]).index('0')
             bound_type = 'lb'  # lower bound
             bound = 50
-            return const_df, mask_df, rangecol, bound_type, bound
+            category = None
+            return const_df, mask_df, rangecol, bound_type, bound, category
         elif constraint == 'category':
             const_df = df[(df['1'] == ' State-gov')]
             mask_df = pd.DataFrame(True, index=const_df.index, columns=const_df.columns)
             mask_df['1'] = False
-            return const_df, mask_df, rangecol, bound_type, bound
+            category = ' State-gov'
+            return const_df, mask_df, rangecol, bound_type, bound, category
         elif constraint == 'both':
             const_df = df[(df['1'] == ' State-gov') & (df['0'] >= 50)]
             mask_df = pd.DataFrame(True, index=const_df.index, columns=const_df.columns)
@@ -550,41 +553,65 @@ def constrainDataset(dataname, constraint, prepper):
             rangecol = list(const_df.columns[prepper.info['num_col_idx']]).index('0')
             bound_type = 'lb'  # lower bound
             bound = 50
-            return const_df, mask_df, rangecol, bound_type, bound
+            category = ' State-gov'
+            return const_df, mask_df, rangecol, bound_type, bound, category
+        elif constraint == 'or':
+            const_df = df[(df['1'] == ' State-gov') | (df['0'] >= 50)]
+            mask_df = pd.DataFrame(True, index=const_df.index, columns=const_df.columns)
+            mask_df['1'] = False
+            rangecol = list(const_df.columns[prepper.info['num_col_idx']]).index('0')
+            bound_type = 'lb'  # lower bound
+            category = ' State-gov'
+            bound = 50
+            return const_df, mask_df, rangecol, bound_type, bound, category
     elif dataname == 'default':
         if constraint == 'range':
             const_df = df[(df['AGE'] >= 50)]
             mask_df = pd.DataFrame(True, index=const_df.index, columns=const_df.columns)
             rangecol = list(const_df.columns[prepper.info['num_col_idx']]).index('AGE')
             bound_type = 'lb'  # lower bound
+            category = None
             bound = 50
-            return const_df, mask_df, rangecol, bound_type, bound
+            return const_df, mask_df, rangecol, bound_type, bound, category
         elif constraint == 'category':
             const_df = df[(df['EDUCATION'] == 3)]
             mask_df = pd.DataFrame(True, index=const_df.index, columns=const_df.columns)
             mask_df['EDUCATION'] = False
-            return const_df, mask_df, rangecol, bound_type, bound
+            category = 3
+            return const_df, mask_df, rangecol, bound_type, bound, category
         elif constraint == 'both':
             const_df = df[(df['EDUCATION'] == 3) & (df['AGE'] >= 50)]
             mask_df = pd.DataFrame(True, index=const_df.index, columns=const_df.columns)
             mask_df['EDUCATION'] = False
             rangecol = list(const_df.columns[prepper.info['num_col_idx']]).index('AGE')
             bound_type = 'lb'  # lower bound
+            category = 3
             bound = 50
-            return const_df, mask_df, rangecol, bound_type, bound
+            return const_df, mask_df, rangecol, bound_type, bound, category
+        elif constraint == 'or':
+            const_df = df[(df['EDUCATION'] == 3) | (df['AGE'] >= 50)]
+            mask_df = pd.DataFrame(True, index=const_df.index, columns=const_df.columns)
+            mask_df['EDUCATION'] = False
+            rangecol = list(const_df.columns[prepper.info['num_col_idx']]).index('AGE')
+            bound_type = 'lb'  # lower bound
+            bound = 50
+            category = 3
+            return const_df, mask_df, rangecol, bound_type, bound, category
     elif dataname == 'shoppers':
         if constraint == 'range':
             const_df = df[(df['Administrative'] >= 4)]
             mask_df = pd.DataFrame(True, index=const_df.index, columns=const_df.columns)
             rangecol = list(const_df.columns[prepper.info['num_col_idx']]).index('Administrative')
             bound_type = 'lb'  # lower bound
+            category = None
             bound = 4
-            return const_df, mask_df, rangecol, bound_type, bound
+            return const_df, mask_df, rangecol, bound_type, bound, category
         elif constraint == 'category':
             const_df = df[(df['VisitorType'] == 'New_Visitor')]
             mask_df = pd.DataFrame(True, index=const_df.index, columns=const_df.columns)
             mask_df['VisitorType'] = False
-            return const_df, mask_df, rangecol, bound_type, bound
+            category = 'New_Visitor'
+            return const_df, mask_df, rangecol, bound_type, bound, category
         elif constraint == 'both':
             const_df = df[(df['VisitorType'] == 'New_Visitor') & (df['Administrative'] >= 4)]
             mask_df = pd.DataFrame(True, index=const_df.index, columns=const_df.columns)
@@ -593,6 +620,15 @@ def constrainDataset(dataname, constraint, prepper):
             bound_type = 'lb'  # lower bound
             bound = 4
             return const_df, mask_df, rangecol, bound_type, bound
+        elif constraint == 'or':
+            const_df = df[(df['VisitorType'] == 'New_Visitor') | (df['Administrative'] >= 4)]
+            mask_df = pd.DataFrame(True, index=const_df.index, columns=const_df.columns)
+            mask_df['VisitorType'] = False
+            rangecol = list(const_df.columns[prepper.info['num_col_idx']]).index('Administrative')
+            bound_type = 'lb'  # lower bound
+            bound = 4
+            category = 'New_Visitor'
+            return const_df, mask_df, rangecol, bound_type, bound, category
     else:
         print('Not valid for provided dataset')
         exit()

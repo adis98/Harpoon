@@ -12,11 +12,14 @@ import time
 from tqdm import tqdm
 from generate_mask import generate_mask, constrainDataset
 from dataset import Preprocessor, get_eval
-from synthcity.metrics.eval_statistical import AlphaPrecision
+from synthcity.metrics.eval_statistical import AlphaPrecision, KolmogorovSmirnovTest
+from synthcity.metrics.eval_detection import SyntheticDetectionLinear
 from synthcity.plugins.core.dataloader import GenericDataLoader
-
+from synthcity.metrics.eval_privacy import IdentifiabilityScore
 # TensorFlow logging
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+torch.set_num_threads(1)
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 # Ignore Python warnings
 warnings.filterwarnings("ignore")
@@ -40,7 +43,7 @@ if __name__ == "__main__":
     parser.add_argument('--dataname', type=str, default='adult', help='Name of dataset.')
     parser.add_argument('--gpu', type=int, default=0, help='GPU index.')
     parser.add_argument('--batch_size', type=int, default=1024)
-    parser.add_argument('--constraint', type=str, default='range', help='Constraint choice. range, category, both')
+    parser.add_argument('--constraint', type=str, default='range', help='Constraint choice. range, category, both, or')
     parser.add_argument('--num_trials', type=int, default=5, help='Number of sampling times.')
     torch.manual_seed(42)
     numpy.random.seed(42)
@@ -61,7 +64,7 @@ if __name__ == "__main__":
         info = json.load(f)
 
     prepper = Preprocessor(dataname)
-    const_df, mask_df, rangecol, bound_type, bound = constrainDataset(dataname, constraint,
+    const_df, mask_df, rangecol, bound_type, bound, cata = constrainDataset(dataname, constraint,
                                                                       prepper)  # constrained df and the mask
     train_df = pd.read_csv(f'datasets/{args.dataname}/train.csv')
     stooge = prepper.encodeDf('OHE', prepper.df_train)
@@ -89,6 +92,7 @@ if __name__ == "__main__":
     orig_mask = np.tile(orig_mask_base, (num_trials, 1, 1))
 
     alpha_ps, violation_accs = [], []  # alpha precisions and violation accuracies
+    detection_score, privacy_score, ks_score = [], [], []
     models_dir = f'saved_models/{args.dataname}/GReaT'
     great_model = GReaT.load_from_dir(models_dir)
     # max_length = 200 if args.dataname not in ['bean', 'default', 'gesture'] else 350  # some datasets need more tokens
@@ -96,6 +100,7 @@ if __name__ == "__main__":
     sz = 100 if args.dataname in ['gesture', 'news'] else 200
 
     for trial in tqdm(range(num_trials), desc='Out-of-sample imputation'):
+        torch.cuda.empty_cache()
         with torch.no_grad():
             mask = orig_mask[trial]
             masked_df = test_df.mask(mask)
@@ -134,24 +139,42 @@ if __name__ == "__main__":
         elif bound_type == 'ub':
             range_violations = (X_pred_dec[:,
                                 rangecol] > bound_standardized_np)  # Is X_pred lesser than or equal to upper bound constraint?
-        if constraint != 'range':
-            category_violations = (X_pred_dec[~orig_mask_base] != X_true_dec[~orig_mask_base])
 
-        overall_violations = category_violations | range_violations
+        if constraint != 'range' and constraint != 'or':
+            category_violations = (X_pred_dec[~orig_mask_base] != X_true_dec[~orig_mask_base])
+        elif constraint != 'range' and constraint == 'or':
+            category_violations = (X_pred_dec[~orig_mask_base] != cata)
+
+        if constraint != 'or':
+            overall_violations = category_violations | range_violations
+        else:
+            overall_violations = category_violations & range_violations
         violation_p = (np.sum(overall_violations) * 100.0) / len(overall_violations)
         violation_accs.append(violation_p)
         X_true_dec_enc = prepper.encodeNp(scheme='OHE', arr=X_true_dec).astype(np.float32)
         X_pred_dec_enc = prepper.encodeNp(scheme='OHE', arr=X_pred_dec).astype(np.float32)
         evaluator = AlphaPrecision()
+        evaluator_detection = SyntheticDetectionLinear()
+        evaluator_resemblance = KolmogorovSmirnovTest()
+        evaluator_priv = IdentifiabilityScore()
         X_syn_loader = GenericDataLoader(X_pred_dec_enc)
         X_real_loader = GenericDataLoader(X_true_dec_enc)
         results = evaluator.evaluate(X_real_loader, X_syn_loader)
+        results_detection = evaluator_detection.evaluate(X_real_loader, X_syn_loader)
+        results_ks = evaluator_resemblance.evaluate(X_real_loader, X_syn_loader)
+        results_privacy = evaluator_priv.evaluate(X_real_loader, X_syn_loader)
         alpha = results['delta_precision_alpha_naive']
+        ks_score.append(results_ks['marginal'])
+        detection_score.append(results_detection['mean'])
+        privacy_score.append(results_privacy['score'])
         alpha_ps.append(alpha)
 
     alpha_ps = np.array(alpha_ps)
+    ks_es = np.array(ks_score)
+    ident_s = np.array(privacy_score)
+    detect_s = np.array(detection_score)
     violation_accs = np.array(violation_accs)
-    experiment_path = f'experiments/general_constraints.csv'
+    experiment_path = f'experiments/general_constraints_updated.csv'
     directory = os.path.dirname(experiment_path)
     if directory and not os.path.exists(directory):
         os.makedirs(directory)
@@ -163,7 +186,13 @@ if __name__ == "__main__":
             "Avg Alpha-P",
             "Std Alpha-P",
             "Avg ViolationAcc",
-            "Std ViolationAcc"
+            "Std ViolationAcc",
+            "Avg ks",
+            "Std ks",
+            "Avg detect",
+            "Std detect",
+            "Avg identifiability",
+            "Std identifiability"
         ]
         exp_df = pd.DataFrame(columns=columns)
     else:
@@ -175,7 +204,13 @@ if __name__ == "__main__":
                "Avg Alpha-P": np.mean(alpha_ps),
                "Std Alpha-P": np.std(alpha_ps),
                "Avg ViolationAcc": np.mean(violation_accs),
-               "Std ViolationAcc": np.std(violation_accs)
+               "Std ViolationAcc": np.std(violation_accs),
+               "Avg ks": np.mean(ks_es),
+               "Std ks": np.std(ks_es),
+               "Avg detect": np.mean(detect_s),
+               "Std detect": np.std(detect_s),
+               "Avg identifiability": np.mean(ident_s),
+               "Std identifiability": np.std(ident_s)
                }
     new_df = pd.concat([exp_df, pd.DataFrame([new_row])], ignore_index=True)
     new_df.to_csv(experiment_path)

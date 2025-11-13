@@ -14,8 +14,11 @@ from dataset import Preprocessor
 from utils import calc_diffusion_hyperparams
 import matplotlib.pyplot as plt
 from sampling_harpoon_ohe_basicmanifold_kld import computeCatLoss
-from synthcity.metrics.eval_statistical import AlphaPrecision
+from synthcity.metrics.eval_statistical import AlphaPrecision, KolmogorovSmirnovTest
+from synthcity.metrics.eval_detection import SyntheticDetectionLinear
 from synthcity.plugins.core.dataloader import GenericDataLoader
+from synthcity.metrics.eval_privacy import IdentifiabilityScore
+# TODO: From synthcity, also add one utility metric/score
 
 warnings.filterwarnings('ignore')
 
@@ -31,7 +34,7 @@ if __name__ == '__main__':
     parser.add_argument('--timesteps', type=int, default=200, help='Number of diffusion steps.')
     parser.add_argument('--beta_0', type=float, default=0.0001, help='initial variance schedule')
     parser.add_argument('--beta_T', type=float, default=0.02, help='last variance schedule')
-    parser.add_argument('--constraint', type=str, default='range', help='Constraint choice. range, category, both')
+    parser.add_argument('--constraint', type=str, default='range', help='Constraint choice. range, category, both, or')
     parser.add_argument('--num_trials', type=int, default=5, help='Number of sampling times.')
 
     args = parser.parse_args()
@@ -48,7 +51,7 @@ if __name__ == '__main__':
     num_trials = args.num_trials
 
     prepper = Preprocessor(dataname)
-    const_df, mask_df, rangecol, bound_type, bound = constrainDataset(dataname, constraint,
+    const_df, mask_df, rangecol, bound_type, bound, cata = constrainDataset(dataname, constraint,
                                                                       prepper)  # constrained df and the mask
     train_X = prepper.encodeDf('OHE', prepper.df_train)
     test_X = prepper.encodeDf('OHE', const_df)
@@ -84,6 +87,8 @@ if __name__ == '__main__':
     model.eval()
     mask_tests = torch.tensor(test_masks)
     alpha_ps, violation_accs = [], []  # alpha precisions and violation accuracies
+    detection_score, privacy_score, ks_score = [], [], []
+    # TODO: add array to collect utility metrics
     X_test_gpu = X_test.to(device)
 
     for trial in tqdm(range(num_trials), desc='Out-of-sample imputation'):
@@ -110,7 +115,10 @@ if __name__ == '__main__':
                         # loss1 += torch.sum((1 - mask_float) * abs(x_0_hat - X_test_gpu) ** 1, dim=1)
                     loss2 = torch.sum((1 - mask_float) * abs(x_0_hat - X_test_gpu), dim=1)
                     # loss2 = computeCatLoss(x_0_hat, X_test_gpu, num_numeric, prepper.OneHotEncoder.categories_, mask_float)
-                    cond_loss = loss1 + loss2
+                    if constraint != 'or':
+                        cond_loss = loss1 + loss2
+                    else:
+                        cond_loss = loss1 * loss2
                     grad = torch.autograd.grad(cond_loss, x_t, grad_outputs=torch.ones_like(cond_loss))[0]
                 x_t = (x_t / torch.sqrt(alpha_t)) - (
                         (1 - alpha_t) / (torch.sqrt(alpha_t) * torch.sqrt(
@@ -137,24 +145,42 @@ if __name__ == '__main__':
             range_violations = (X_pred_dec[:, rangecol] < bound_standardized_np)  # Is X_pred greater than or equal to lower bound constraint?
         elif bound_type == 'ub':
             range_violations = (X_pred_dec[:, rangecol] > bound_standardized_np)  # Is X_pred lesser than or equal to upper bound constraint?
-        if constraint != 'range':
+        if constraint != 'range' and constraint != 'or':
             category_violations = (X_pred_dec[~orig_mask_base] != X_true_dec[~orig_mask_base])
+        elif constraint != 'range' and constraint == 'or':
+            category_violations = (X_pred_dec[~orig_mask_base] != cata)
 
-        overall_violations = category_violations | range_violations
+        if constraint != 'or':
+            overall_violations = category_violations | range_violations
+        else:
+            overall_violations = category_violations & range_violations
         violation_p = (np.sum(overall_violations)*100.0)/len(overall_violations)
         violation_accs.append(violation_p)
         X_true_dec_enc = prepper.encodeNp(scheme='OHE', arr=X_true_dec).astype(np.float32)
         X_pred_dec_enc = prepper.encodeNp(scheme='OHE', arr=X_pred_dec).astype(np.float32)
         evaluator = AlphaPrecision()
+        evaluator_detection = SyntheticDetectionLinear()
+        evaluator_resemblance = KolmogorovSmirnovTest()
+        # TODO: Add an evaluator for the utility metric
+        evaluator_priv = IdentifiabilityScore()
         X_syn_loader = GenericDataLoader(X_pred_dec_enc)
         X_real_loader = GenericDataLoader(X_true_dec_enc)
         results = evaluator.evaluate(X_real_loader, X_syn_loader)
+        results_detection = evaluator_detection.evaluate(X_real_loader, X_syn_loader)
+        results_ks = evaluator_resemblance.evaluate(X_real_loader, X_syn_loader)
+        results_privacy = evaluator_priv.evaluate(X_real_loader, X_syn_loader)
         alpha = results['delta_precision_alpha_naive']
+        ks_score.append(results_ks['marginal'])
+        detection_score.append(results_detection['mean'])
+        privacy_score.append(results_privacy['score'])
         alpha_ps.append(alpha)
 
     alpha_ps = np.array(alpha_ps)
+    ks_es = np.array(ks_score)
+    ident_s = np.array(privacy_score)
+    detect_s = np.array(detection_score)
     violation_accs = np.array(violation_accs)
-    experiment_path = f'experiments/general_constraints.csv'
+    experiment_path = f'experiments/general_constraints_updated.csv'  # TODO: push results to a different file name
     directory = os.path.dirname(experiment_path)
     if directory and not os.path.exists(directory):
         os.makedirs(directory)
@@ -166,7 +192,14 @@ if __name__ == '__main__':
             "Avg Alpha-P",
             "Std Alpha-P",
             "Avg ViolationAcc",
-            "Std ViolationAcc"
+            "Std ViolationAcc",
+            "Avg ks",
+            "Std ks",
+            "Avg detect",
+            "Std detect",
+            "Avg identifiability",
+            "Std identifiability"
+            # TODO: Add utility std and avg
         ]
         exp_df = pd.DataFrame(columns=columns)
     else:
@@ -178,7 +211,14 @@ if __name__ == '__main__':
                "Avg Alpha-P": np.mean(alpha_ps),
                "Std Alpha-P": np.std(alpha_ps),
                "Avg ViolationAcc": np.mean(violation_accs),
-               "Std ViolationAcc": np.std(violation_accs)
+               "Std ViolationAcc": np.std(violation_accs),
+               "Avg ks": np.mean(ks_es),
+               "Std ks": np.std(ks_es),
+               "Avg detect": np.mean(detect_s),
+               "Std detect": np.std(detect_s),
+               "Avg identifiability": np.mean(ident_s),
+               "Std identifiability": np.std(ident_s)
+               # TODO: Add Avg utility and Std utility
                }
     new_df = pd.concat([exp_df, pd.DataFrame([new_row])], ignore_index=True)
     new_df.to_csv(experiment_path)
