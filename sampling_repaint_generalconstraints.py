@@ -171,7 +171,7 @@ if __name__ == '__main__':
     ident_s = np.array(privacy_score)
     detect_s = np.array(detection_score)
     violation_accs = np.array(violation_accs)
-    experiment_path = f'experiments/general_constraints_updated.csv'
+    experiment_path = f'experiments/general_constraints_updated_addedUtility.csv'
     directory = os.path.dirname(experiment_path)
     if directory and not os.path.exists(directory):
         os.makedirs(directory)
