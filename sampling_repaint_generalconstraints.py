@@ -18,6 +18,8 @@ from synthcity.metrics.eval_statistical import AlphaPrecision, KolmogorovSmirnov
 from synthcity.metrics.eval_detection import SyntheticDetectionLinear
 from synthcity.plugins.core.dataloader import GenericDataLoader
 from synthcity.metrics.eval_privacy import IdentifiabilityScore
+from synthcity.metrics.weighted_metrics import WeightedMetrics 
+
 warnings.filterwarnings('ignore')
 torch.set_num_threads(1)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -87,6 +89,7 @@ if __name__ == '__main__':
     mask_tests = torch.tensor(test_masks)
     alpha_ps, violation_accs = [], []  # alpha precisions and violation accuracies
     detection_score, privacy_score, ks_score = [], [], []
+    util_score = []  # utility scores
     X_test_gpu = X_test.to(device)
 
     for trial in tqdm(range(num_trials), desc='Out-of-sample imputation'):
@@ -142,6 +145,14 @@ if __name__ == '__main__':
         evaluator_detection = SyntheticDetectionLinear()
         evaluator_resemblance = KolmogorovSmirnovTest()
         evaluator_priv = IdentifiabilityScore()
+        evaluator_util_xgb = WeightedMetrics(
+            metrics=[("performance", "xgb")],   # category, metric name
+            weights=[1.0],                      # single metric → weight 1.0
+            task_type="classification",         # or "regression"
+            random_state=0,
+        )
+        results_util = evaluator_util_xgb.evaluate(X_real_loader, X_syn_loader)  # XGBoost utility score
+
         X_syn_loader = GenericDataLoader(X_pred_dec_enc)
         X_real_loader = GenericDataLoader(X_true_dec_enc)
         results = evaluator.evaluate(X_real_loader, X_syn_loader)
@@ -153,6 +164,7 @@ if __name__ == '__main__':
         detection_score.append(results_detection['mean'])
         privacy_score.append(results_privacy['score'])
         alpha_ps.append(alpha)
+        util_score.append(results_util['performance'])
 
     alpha_ps = np.array(alpha_ps)
     ks_es = np.array(ks_score)
@@ -177,7 +189,9 @@ if __name__ == '__main__':
             "Avg detect",
             "Std detect",
             "Avg identifiability",
-            "Std identifiability"
+            "Std identifiability",
+            "Avg xgb utility",
+            "Std xgb utility"
         ]
         exp_df = pd.DataFrame(columns=columns)
     else:
@@ -195,7 +209,9 @@ if __name__ == '__main__':
                "Avg detect": np.mean(detect_s),
                "Std detect": np.std(detect_s),
                "Avg identifiability": np.mean(ident_s),
-               "Std identifiability": np.std(ident_s)
+               "Std identifiability": np.std(ident_s),
+               "Avg xgb utility": np.mean(util_score),
+               "Std xgb utility": np.std(util_score)
                }
     new_df = pd.concat([exp_df, pd.DataFrame([new_row])], ignore_index=True)
     new_df.to_csv(experiment_path)
