@@ -29,6 +29,7 @@ parser.add_argument('--mask', type=str, default='MAR', help='Masking mechanisms.
 parser.add_argument('--num_trials', type=int, default=5, help='Number of sampling times.')
 parser.add_argument('--ratio', type=str, default="0.25", help='Masking ratio.')
 parser.add_argument('--runtime_test', type=bool, default=False, help='store runtime?')
+parser.add_argument('--ignore_hard_fix', type=bool, default=False, help="skip injecting hard constraints at the end")
 
 args = parser.parse_args()
 
@@ -110,17 +111,24 @@ if __name__ == '__main__':
             end = timer()
             diff = end - start
             exec_times.append(diff)
-            X_pred = (x_t * mask_float + (1-mask_float) * X_test_gpu).cpu().numpy()
+            if args.ignore_hard_fix:
+                X_pred = x_t.cpu().numpy()
+            else:
+                X_pred = (x_t * mask_float + (1 - mask_float) * X_test_gpu).cpu().numpy()
             X_true = X_test.numpy()
             X_true_dec = prepper.decodeNp(scheme='OHE', arr=X_true)
             X_pred_dec = prepper.decodeNp(scheme='OHE', arr=X_pred)
-            mse, acc = get_eval(X_pred_dec, X_true_dec, orig_mask[trial], num_numeric)
+            if args.ignore_hard_fix:
+                mse, acc = get_eval(X_pred_dec, X_true_dec, ~orig_mask[trial], num_numeric)
+            else:
+                mse, acc = get_eval(X_pred_dec, X_true_dec, orig_mask[trial], num_numeric)
             MSEs.append(mse)
             ACCs.append(acc)
 
     MSEs = np.array(MSEs)
     ACCs = np.array(ACCs)
     arr_time = np.array(exec_times)
+    method_str = f'DiffPuter_Remastered_softfix' if args.ignore_hard_fix else f'DiffPuter_Remastered'
     if args.runtime_test:
         experiment_path = f'experiments/runtime.csv'
         directory = os.path.dirname(experiment_path)
@@ -144,7 +152,7 @@ if __name__ == '__main__':
             exp_df = pd.read_csv(experiment_path).drop(columns=['Unnamed: 0'])
 
         new_row = {"Dataset": dataname,
-                   "Method": "DiffPuter_Remastered",
+                   "Method": method_str,
                    "Mask Type": args.mask,
                    "Ratio": ratio,
                    "Avg MSE": np.mean(MSEs),
@@ -157,7 +165,8 @@ if __name__ == '__main__':
         new_df = pd.concat([exp_df, pd.DataFrame([new_row])], ignore_index=True)
         new_df.to_csv(experiment_path)
         exit()
-    experiment_path = f'experiments/imputation.csv'
+    # experiment_path = f'experiments/imputation.csv'
+    experiment_path = f'experiments/extremeconstraint.csv'
     directory = os.path.dirname(experiment_path)
     if directory and not os.path.exists(directory):
         os.makedirs(directory)
@@ -177,7 +186,7 @@ if __name__ == '__main__':
         exp_df = pd.read_csv(experiment_path).drop(columns=['Unnamed: 0'])
 
     new_row = {"Dataset": dataname,
-               "Method": "DiffPuter_Remastered",
+               "Method": method_str,
                "Mask Type": args.mask,
                "Ratio": ratio,
                "Avg MSE": np.mean(MSEs),

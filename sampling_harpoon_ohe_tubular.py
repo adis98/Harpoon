@@ -18,7 +18,6 @@ from timeit import default_timer as timer
 
 warnings.filterwarnings('ignore')
 
-
 if __name__ == '__main__':
     torch.manual_seed(42)
     np.random.seed(42)
@@ -36,6 +35,8 @@ if __name__ == '__main__':
     parser.add_argument('--ratio', type=str, default="0.25", help='Masking ratio.')
     parser.add_argument('--loss', type=str, default='mae', help='inference loss type')
     parser.add_argument('--runtime_test', type=bool, default=False, help='store runtime?')
+    parser.add_argument('--schedule', type=bool, default=False, help="use linear eta schedule")
+    parser.add_argument('--ignore_hard_fix', type=bool, default=False, help="skip injecting hard constraints at the end")
 
     args = parser.parse_args()
 
@@ -111,10 +112,11 @@ if __name__ == '__main__':
                     if 'mae' in args.loss:
                         loss1 += torch.sum((1 - mask_float) * abs(x_0_hat - X_test_gpu), dim=1)
                     elif 'mse' in args.loss:
-                        loss1 += torch.sum((1 - mask_float) * (x_0_hat - X_test_gpu)**2, dim=1)
+                        loss1 += torch.sum((1 - mask_float) * (x_0_hat - X_test_gpu) ** 2, dim=1)
                     loss2 = 0.0
                     if 'kld' in args.loss:
-                        loss2 += computeCatLoss(x_0_hat, X_test_gpu, num_numeric, prepper.OneHotEncoder.categories_, mask_float)
+                        loss2 += computeCatLoss(x_0_hat, X_test_gpu, num_numeric, prepper.OneHotEncoder.categories_,
+                                                mask_float)
                     # loss2 = torch.sum((1 - mask_float) * abs(x_0_hat - X_test_gpu) ** 1, dim=1)
                     cond_loss = loss1 + loss2
                     grad = torch.autograd.grad(cond_loss, x_t, grad_outputs=torch.ones_like(cond_loss))[0]
@@ -125,24 +127,36 @@ if __name__ == '__main__':
 
                 vari = 0.0
                 if t > 0:
-                    vari = (1-alpha_t) * ((1 - alpha_bar_t_1) / (1 - alpha_bar_t)) * torch.normal(0, 1, size=x_t.shape).to(device)
+                    vari = (1 - alpha_t) * ((1 - alpha_bar_t_1) / (1 - alpha_bar_t)) * torch.normal(0, 1,
+                                                                                                    size=x_t.shape).to(
+                        device)
                 x_t += vari
-                update = -0.2 * grad  # /torch.norm(grad, dim=1).unsqueeze(1)
+                scale = -0.2 * ((args.timesteps - 1 - t) / args.timesteps) if args.schedule else -0.2
+                update = scale * grad  # /torch.norm(grad, dim=1).unsqueeze(1)
                 x_t += update
             end = timer()
             diff = end - start
             exec_times.append(diff)
-            X_pred = (x_t * mask_float + (1 - mask_float) * X_test_gpu).cpu().numpy()
+            if args.ignore_hard_fix:
+                X_pred = x_t.cpu().numpy()
+            else:
+                X_pred = (x_t * mask_float + (1 - mask_float) * X_test_gpu).cpu().numpy()
             X_true = X_test.numpy()
             X_true_dec = prepper.decodeNp(scheme='OHE', arr=X_true)
             X_pred_dec = prepper.decodeNp(scheme='OHE', arr=X_pred)
-            mse, acc = get_eval(X_pred_dec, X_true_dec, orig_mask[trial], num_numeric)
+            if args.ignore_hard_fix:
+                mse, acc = get_eval(X_pred_dec, X_true_dec, ~orig_mask[trial], num_numeric)
+            else:
+                mse, acc = get_eval(X_pred_dec, X_true_dec, orig_mask[trial], num_numeric)
             MSEs.append(mse)
             ACCs.append(acc)
 
     MSEs = np.array(MSEs)
     ACCs = np.array(ACCs)
     arr_time = np.array(exec_times)
+    method_str = f'harpoon_ohe_{args.loss}_linear' if args.schedule else f'harpoon_ohe_{args.loss}'
+    if args.ignore_hard_fix:
+        method_str += 'softfix'
     if args.runtime_test:
         experiment_path = f'experiments/runtime.csv'
         directory = os.path.dirname(experiment_path)
@@ -166,7 +180,7 @@ if __name__ == '__main__':
             exp_df = pd.read_csv(experiment_path).drop(columns=['Unnamed: 0'])
 
         new_row = {"Dataset": dataname,
-                   "Method": f"harpoon_ohe_{args.loss}",
+                   "Method": method_str,
                    "Mask Type": args.mask,
                    "Ratio": ratio,
                    "Avg MSE": np.mean(MSEs),
@@ -179,7 +193,8 @@ if __name__ == '__main__':
         new_df = pd.concat([exp_df, pd.DataFrame([new_row])], ignore_index=True)
         new_df.to_csv(experiment_path)
         exit()
-    experiment_path = f'experiments/imputation.csv'
+    # experiment_path = f'experiments/imputation.csv'
+    experiment_path = f'experiments/extremeconstraint.csv'
     directory = os.path.dirname(experiment_path)
     if directory and not os.path.exists(directory):
         os.makedirs(directory)
@@ -199,7 +214,7 @@ if __name__ == '__main__':
         exp_df = pd.read_csv(experiment_path).drop(columns=['Unnamed: 0'])
 
     new_row = {"Dataset": dataname,
-               "Method": f"harpoon_ohe_{args.loss}",
+               "Method": method_str,
                "Mask Type": args.mask,
                "Ratio": ratio,
                "Avg MSE": np.mean(MSEs),

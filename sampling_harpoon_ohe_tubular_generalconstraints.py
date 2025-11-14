@@ -18,10 +18,13 @@ from synthcity.metrics.eval_statistical import AlphaPrecision, KolmogorovSmirnov
 from synthcity.metrics.eval_detection import SyntheticDetectionLinear
 from synthcity.plugins.core.dataloader import GenericDataLoader
 from synthcity.metrics.eval_privacy import IdentifiabilityScore
+from synthcity.metrics.eval_performance import PerformanceEvaluatorXGB
 # TODO: From synthcity, also add one utility metric/score
 from synthcity.metrics.weighted_metrics import WeightedMetrics 
 
 warnings.filterwarnings('ignore')
+torch.set_num_threads(1)
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 if __name__ == '__main__':
     torch.manual_seed(42)
@@ -161,6 +164,7 @@ if __name__ == '__main__':
         X_true_dec_enc = prepper.encodeNp(scheme='OHE', arr=X_true_dec).astype(np.float32)
         X_pred_dec_enc = prepper.encodeNp(scheme='OHE', arr=X_pred_dec).astype(np.float32)
         evaluator = AlphaPrecision()
+        evaluator_utility = PerformanceEvaluatorXGB()
         evaluator_detection = SyntheticDetectionLinear()
         evaluator_resemblance = KolmogorovSmirnovTest()
         # TODO: Add an evaluator for the utility metric
@@ -177,6 +181,7 @@ if __name__ == '__main__':
         X_syn_loader = GenericDataLoader(X_pred_dec_enc)
         X_real_loader = GenericDataLoader(X_true_dec_enc)
         results = evaluator.evaluate(X_real_loader, X_syn_loader)
+        results_util = evaluator_utility.evaluate(X_real_loader, X_syn_loader)
         results_detection = evaluator_detection.evaluate(X_real_loader, X_syn_loader)
         results_ks = evaluator_resemblance.evaluate(X_real_loader, X_syn_loader)
         results_privacy = evaluator_priv.evaluate(X_real_loader, X_syn_loader)
