@@ -16,6 +16,10 @@ from synthcity.metrics.eval_statistical import AlphaPrecision, KolmogorovSmirnov
 from synthcity.metrics.eval_detection import SyntheticDetectionLinear
 from synthcity.plugins.core.dataloader import GenericDataLoader
 from synthcity.metrics.eval_privacy import IdentifiabilityScore
+from synthcity.metrics.weighted_metrics import WeightedMetrics 
+
+
+
 # TensorFlow logging
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 torch.set_num_threads(1)
@@ -93,6 +97,8 @@ if __name__ == "__main__":
 
     alpha_ps, violation_accs = [], []  # alpha precisions and violation accuracies
     detection_score, privacy_score, ks_score = [], [], []
+    util_score = []
+
     models_dir = f'saved_models/{args.dataname}/GReaT'
     great_model = GReaT.load_from_dir(models_dir)
     # max_length = 200 if args.dataname not in ['bean', 'default', 'gesture'] else 350  # some datasets need more tokens
@@ -157,24 +163,35 @@ if __name__ == "__main__":
         evaluator_detection = SyntheticDetectionLinear()
         evaluator_resemblance = KolmogorovSmirnovTest()
         evaluator_priv = IdentifiabilityScore()
+        evaluator_util_xgb = WeightedMetrics(
+            metrics=[("performance", "xgb")],   # category, metric name
+            weights=[1.0],                      # single metric → weight 1.0
+            task_type="classification",         # or "regression"
+            random_state=0,
+        )
+        results_util = evaluator_util_xgb.evaluate(X_real_loader, X_syn_loader)  # XGBoost utility score
+
         X_syn_loader = GenericDataLoader(X_pred_dec_enc)
         X_real_loader = GenericDataLoader(X_true_dec_enc)
+
         results = evaluator.evaluate(X_real_loader, X_syn_loader)
         results_detection = evaluator_detection.evaluate(X_real_loader, X_syn_loader)
         results_ks = evaluator_resemblance.evaluate(X_real_loader, X_syn_loader)
         results_privacy = evaluator_priv.evaluate(X_real_loader, X_syn_loader)
+        
         alpha = results['delta_precision_alpha_naive']
         ks_score.append(results_ks['marginal'])
         detection_score.append(results_detection['mean'])
         privacy_score.append(results_privacy['score'])
         alpha_ps.append(alpha)
+        util_score.append(results_util['performance'])
 
     alpha_ps = np.array(alpha_ps)
     ks_es = np.array(ks_score)
     ident_s = np.array(privacy_score)
     detect_s = np.array(detection_score)
     violation_accs = np.array(violation_accs)
-    experiment_path = f'experiments/general_constraints_updated.csv'
+    experiment_path = f'experiments/general_constraints_updated_addedUtility.csv'
     directory = os.path.dirname(experiment_path)
     if directory and not os.path.exists(directory):
         os.makedirs(directory)
@@ -192,7 +209,9 @@ if __name__ == "__main__":
             "Avg detect",
             "Std detect",
             "Avg identifiability",
-            "Std identifiability"
+            "Std identifiability",
+            "Avg xgb utility",
+            "Std xgb utility"
         ]
         exp_df = pd.DataFrame(columns=columns)
     else:
@@ -210,7 +229,9 @@ if __name__ == "__main__":
                "Avg detect": np.mean(detect_s),
                "Std detect": np.std(detect_s),
                "Avg identifiability": np.mean(ident_s),
-               "Std identifiability": np.std(ident_s)
+               "Std identifiability": np.std(ident_s),
+               "Avg xgb utility": np.mean(util_score),
+               "Std xgb utility": np.std(util_score)
                }
     new_df = pd.concat([exp_df, pd.DataFrame([new_row])], ignore_index=True)
     new_df.to_csv(experiment_path)
