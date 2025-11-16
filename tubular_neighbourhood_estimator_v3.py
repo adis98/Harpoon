@@ -91,7 +91,7 @@ if __name__ == '__main__':
                 sigmas_predicted = model(batch_noised, timesteps)
                 x_0_hats = (batch_noised - torch.sqrt(1 - alpha_bar_t) * sigmas_predicted) / torch.sqrt(alpha_bar_t)
                 loss1 = torch.sum(((x_0_hats - X_batch)**2))
-                loss2 = computeCatLoss(x_0_hats, X_batch, num_numeric, prepper.OneHotEncoder.categories_, mask=mask)
+                loss2 = torch.sum(computeCatLoss(x_0_hats, X_batch, num_numeric, prepper.OneHotEncoder.categories_, mask=mask))
                 loss3 = torch.sum((abs(x_0_hats - X_batch)))
                 cond_loss = loss1 + loss2
                 cond_loss_no_KLD = loss1
