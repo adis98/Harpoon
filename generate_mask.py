@@ -619,7 +619,8 @@ def constrainDataset(dataname, constraint, prepper):
             rangecol = list(const_df.columns[prepper.info['num_col_idx']]).index('Administrative')
             bound_type = 'lb'  # lower bound
             bound = 4
-            return const_df, mask_df, rangecol, bound_type, bound
+            category = 'New_Visitor'
+            return const_df, mask_df, rangecol, bound_type, bound, category
         elif constraint == 'or':
             const_df = df[(df['VisitorType'] == 'New_Visitor') | (df['Administrative'] >= 4)]
             mask_df = pd.DataFrame(True, index=const_df.index, columns=const_df.columns)

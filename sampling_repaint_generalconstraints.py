@@ -151,10 +151,19 @@ if __name__ == '__main__':
             task_type="classification",         # or "regression"
             random_state=0,
         )
-        results_util = evaluator_util_xgb.evaluate(X_real_loader, X_syn_loader)  # XGBoost utility score
-
         X_syn_loader = GenericDataLoader(X_pred_dec_enc)
         X_real_loader = GenericDataLoader(X_true_dec_enc)
+        X_true_dec_enc_util = prepper.encodeNp(scheme='Ordinal', arr=X_true_dec).astype(np.float32)
+        X_pred_dec_enc_util = prepper.encodeNp(scheme='Ordinal', arr=X_pred_dec).astype(np.float32)
+        if args.dataname == 'adult':
+            target = '12'
+        elif args.dataname == 'default':
+            target = '16'
+        else:
+            target = '11'
+        X_real_loader_util = GenericDataLoader(X_true_dec_enc_util, target_column=target)
+        X_syn_loader_util = GenericDataLoader(X_pred_dec_enc_util, target_column=target)
+        results_util = evaluator_util_xgb.evaluate(X_real_loader_util, X_syn_loader_util)  # XGBoost utility score
         results = evaluator.evaluate(X_real_loader, X_syn_loader)
         results_detection = evaluator_detection.evaluate(X_real_loader, X_syn_loader)
         results_ks = evaluator_resemblance.evaluate(X_real_loader, X_syn_loader)
@@ -164,14 +173,14 @@ if __name__ == '__main__':
         detection_score.append(results_detection['mean'])
         privacy_score.append(results_privacy['score'])
         alpha_ps.append(alpha)
-        util_score.append(results_util['performance'])
+        util_score.append(results_util)
 
     alpha_ps = np.array(alpha_ps)
     ks_es = np.array(ks_score)
     ident_s = np.array(privacy_score)
     detect_s = np.array(detection_score)
     violation_accs = np.array(violation_accs)
-    experiment_path = f'experiments/general_constraints_updated_addedUtility.csv'
+    experiment_path = f'experiments/general_constraints_updated_utility.csv'
     directory = os.path.dirname(experiment_path)
     if directory and not os.path.exists(directory):
         os.makedirs(directory)
