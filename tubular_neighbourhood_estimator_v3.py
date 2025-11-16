@@ -134,28 +134,24 @@ if __name__ == '__main__':
     std_angles_MAE = np.array(std_angles_MAE)
     avg_angles_MAE_CE = np.array(avg_angles_MAE_CE)
     std_angles_MAE_CE = np.array(std_angles_MAE_CE)
-    fig, axes = plt.subplots(1, 2, figsize=(10, 4))
     # Create the plot
     # Create side-by-side subplots
 
-    axes[0].set_ylim(0, 180)
-    axes[1].set_ylim(0, 180)
-    # plt.ylim(0, 180)
+    plt.ylim(0, 180)
     # Plot the mean line
 
     if args.dataname in ['adult', 'default', 'shoppers']:
-        axes[1].plot(Ts, avg_angles_with_KLD, color='green', label='with MSE + Cross Entropy')
-        axes[1].plot(Ts, avg_angles_MAE_CE, color='red', label='with MAE + Cross Entropy')
+        plt.plot(Ts, avg_angles_with_KLD, color='green', label='with MSE + Cross Entropy')
+        plt.plot(Ts, avg_angles_MAE_CE, color='red', label='with MAE + Cross Entropy')
 
-    axes[0].plot(Ts, avg_angles_no_KLD, color='orange', label='with MSE only')
-    axes[0].plot(Ts, avg_angles_MAE, color='blue', label='with MAE only')
+    plt.plot(Ts, avg_angles_no_KLD, color='orange', label='with MSE only')
+    plt.plot(Ts, avg_angles_MAE, color='blue', label='with MAE only')
 
-    axes[0].axhline(y=90, color='black', linestyle='-', linewidth=2, label="90 degrees")
-    axes[1].axhline(y=90, color='black', linestyle='-', linewidth=2, label="90 degrees")
+    plt.axhline(y=90, color='black', linestyle='-', linewidth=2, label="90 degrees")
 
     # Add the "cloud" of standard deviation
     if args.dataname in ['adult', 'default', 'shoppers']:
-        axes[1].fill_between(
+        plt.fill_between(
             Ts,
             avg_angles_with_KLD - std_angles_with_KLD,
             avg_angles_with_KLD + std_angles_with_KLD,
@@ -163,7 +159,7 @@ if __name__ == '__main__':
             alpha=0.2,
             # label='±1 Std Dev'
         )
-        axes[1].fill_between(
+        plt.fill_between(
             Ts,
             avg_angles_MAE_CE - std_angles_MAE_CE,
             avg_angles_MAE_CE + std_angles_MAE_CE,
@@ -171,7 +167,7 @@ if __name__ == '__main__':
             alpha=0.2,
             # label='±1 Std Dev'
         )
-    axes[0].fill_between(
+    plt.fill_between(
         Ts,
         avg_angles_no_KLD - std_angles_no_KLD,
         avg_angles_no_KLD + std_angles_no_KLD,
@@ -180,7 +176,7 @@ if __name__ == '__main__':
         # label='±1 Std Dev'
     )
 
-    axes[0].fill_between(
+    plt.fill_between(
         Ts,
         avg_angles_MAE - std_angles_MAE,
         avg_angles_MAE + std_angles_MAE,
@@ -188,18 +184,87 @@ if __name__ == '__main__':
         alpha=0.2,
         # label='±1 Std Dev'
     )
-    axes[0].invert_xaxis()
-    axes[1].invert_xaxis()
+    plt.gca().invert_xaxis()
     # Labels and title
-    # plt.xlabel("Diffusion step t", fontsize=15)
-    # plt.ylabel("Angles in degrees", fontsize=15)
-    fig.supxlabel("Diffusion step t", fontsize=15)
-    fig.supylabel("Angles in degrees", fontsize=15)
-    fig.suptitle(f"Average angle behavior for {args.dataname}", fontsize=18)
+    plt.xlabel("Diffusion step t", fontsize=15)
+    plt.ylabel("Angles in degrees", fontsize=15)
+    # fig.supxlabel("Diffusion step t", fontsize=15)
+    # fig.supylabel("Angles in degrees", fontsize=15)
+    # fig.suptitle(f"Average angle behavior for {args.dataname}", fontsize=18)
     # plt.title(
     #     f"Avg. angles between gradients and denoiser's\n ground truth estimate for {args.dataname}")
-    # plt.legend(fontsize=15)
-    axes[0].legend(fontsize=12)
-    axes[1].legend(fontsize=12)
+    plt.legend(fontsize=15)
+    # axes[0].legend(fontsize=12)
+    # axes[1].legend(fontsize=12)
     # plt.show()
-    plt.savefig(f'experiments/tubular_region_plots/gradient_angles_{args.dataname}_double.pdf', bbox_inches='tight')
+    # plt.savefig(f'experiments/tubular_region_plots/gradient_angles_{args.dataname}_double.pdf', bbox_inches='tight')
+    plt.savefig(f'experiments/tubular_region_plots/gradient_angles_{args.dataname}.pdf', bbox_inches='tight')
+    # fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+    # # Create the plot
+    # # Create side-by-side subplots
+    #
+    # axes[0].set_ylim(0, 180)
+    # axes[1].set_ylim(0, 180)
+    # # plt.ylim(0, 180)
+    # # Plot the mean line
+    #
+    # if args.dataname in ['adult', 'default', 'shoppers']:
+    #     axes[1].plot(Ts, avg_angles_with_KLD, color='green', label='with MSE + Cross Entropy')
+    #     axes[1].plot(Ts, avg_angles_MAE_CE, color='red', label='with MAE + Cross Entropy')
+    #
+    # axes[0].plot(Ts, avg_angles_no_KLD, color='orange', label='with MSE only')
+    # axes[0].plot(Ts, avg_angles_MAE, color='blue', label='with MAE only')
+    #
+    # axes[0].axhline(y=90, color='black', linestyle='-', linewidth=2, label="90 degrees")
+    # axes[1].axhline(y=90, color='black', linestyle='-', linewidth=2, label="90 degrees")
+    #
+    # # Add the "cloud" of standard deviation
+    # if args.dataname in ['adult', 'default', 'shoppers']:
+    #     axes[1].fill_between(
+    #         Ts,
+    #         avg_angles_with_KLD - std_angles_with_KLD,
+    #         avg_angles_with_KLD + std_angles_with_KLD,
+    #         color='green',
+    #         alpha=0.2,
+    #         # label='±1 Std Dev'
+    #     )
+    #     axes[1].fill_between(
+    #         Ts,
+    #         avg_angles_MAE_CE - std_angles_MAE_CE,
+    #         avg_angles_MAE_CE + std_angles_MAE_CE,
+    #         color='red',
+    #         alpha=0.2,
+    #         # label='±1 Std Dev'
+    #     )
+    # axes[0].fill_between(
+    #     Ts,
+    #     avg_angles_no_KLD - std_angles_no_KLD,
+    #     avg_angles_no_KLD + std_angles_no_KLD,
+    #     color='orange',
+    #     alpha=0.2,
+    #     # label='±1 Std Dev'
+    # )
+    #
+    # axes[0].fill_between(
+    #     Ts,
+    #     avg_angles_MAE - std_angles_MAE,
+    #     avg_angles_MAE + std_angles_MAE,
+    #     color='blue',
+    #     alpha=0.2,
+    #     # label='±1 Std Dev'
+    # )
+    # axes[0].invert_xaxis()
+    # axes[1].invert_xaxis()
+    # # Labels and title
+    # # plt.xlabel("Diffusion step t", fontsize=15)
+    # # plt.ylabel("Angles in degrees", fontsize=15)
+    # fig.supxlabel("Diffusion step t", fontsize=15)
+    # fig.supylabel("Angles in degrees", fontsize=15)
+    # fig.suptitle(f"Average angle behavior for {args.dataname}", fontsize=18)
+    # # plt.title(
+    # #     f"Avg. angles between gradients and denoiser's\n ground truth estimate for {args.dataname}")
+    # # plt.legend(fontsize=15)
+    # axes[0].legend(fontsize=12)
+    # axes[1].legend(fontsize=12)
+    # # plt.show()
+    # plt.savefig(f'experiments/tubular_region_plots/gradient_angles_{args.dataname}_double.pdf', bbox_inches='tight')
